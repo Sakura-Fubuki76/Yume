@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bottom_nav_video">视频</string>
+    <string name="bottom_nav_images">图片</string>
+    <string name="bottom_nav_settings">设置</string>
+</resources>
