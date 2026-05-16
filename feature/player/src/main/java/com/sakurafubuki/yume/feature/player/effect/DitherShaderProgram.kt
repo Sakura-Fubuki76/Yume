@@ -1,7 +1,7 @@
 package com.sakurafubuki.yume.feature.player.effect
 
 import android.opengl.GLES30
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import androidx.media3.common.util.GlProgram
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
@@ -25,13 +25,13 @@ class DitherShaderProgram(
         passThroughProgram = runCatching {
             GlProgram(VERTEX_SHADER, PASS_THROUGH_FRAG).also(::setupVertexBuffers)
         }.onFailure {
-            Log.w(TAG, "Dither pass-through shader compilation failed", it)
+            Logger.w(TAG, "Dither pass-through shader compilation failed", it)
         }.getOrNull()
 
         program = runCatching {
             GlProgram(VERTEX_SHADER, FRAG_SHADER).also(::setupVertexBuffers)
         }.onFailure {
-            Log.w(TAG, "Dither shader compilation failed, falling back to pass-through", it)
+            Logger.w(TAG, "Dither shader compilation failed, falling back to pass-through", it)
             shaderInitFailed = true
         }.getOrNull()
         return Size(inputWidth, inputHeight)
@@ -63,7 +63,7 @@ class DitherShaderProgram(
             GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
             checkGlError("Dither")
         } catch (e: Exception) {
-            Log.w(TAG, "Dither drawFrame failed, disabling effect", e)
+            Logger.w(TAG, "Dither drawFrame failed, disabling effect", e)
             shaderInitFailed = true
             drawPassThrough(inputTexId, outputFbo)
         }
@@ -104,7 +104,7 @@ class DitherShaderProgram(
     private fun checkGlError(tag: String) {
         val err = GLES30.glGetError()
         if (err != GLES30.GL_NO_ERROR) {
-            Log.w(TAG, "$tag GL error: 0x${Integer.toHexString(err)}")
+            Logger.w(TAG, "$tag GL error: 0x${Integer.toHexString(err)}")
         }
     }
 

@@ -4,7 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -1251,7 +1251,7 @@ class ImageBrowserViewModel @Inject constructor(
             imageLoader.execute(request)
             val diskCache = imageLoader.diskCache
             if (diskCache == null) {
-                Log.w(TAG, "persistFolderCoverLocally: diskCache is null, cannot save local cover")
+                Logger.w(TAG, "persistFolderCoverLocally: diskCache is null, cannot save local cover")
                 return@withContext null
             }
             diskCache.openSnapshot(stableKey)?.use { snapshot ->
@@ -1261,7 +1261,7 @@ class ImageBrowserViewModel @Inject constructor(
             }
             null
         } catch (e: Exception) {
-            Log.e(TAG, "persistFolderCoverLocally: failed for $coverImageUri", e)
+            Logger.e(TAG, "persistFolderCoverLocally: failed for $coverImageUri", e)
             null
         }
     }
@@ -1566,7 +1566,7 @@ class ImageBrowserViewModel @Inject constructor(
         )
 
         if (cursor == null) {
-            Log.w(TAG, "queryImages: contentResolver.query() returned null (likely permission denied)")
+            Logger.w(TAG, "queryImages: contentResolver.query() returned null (likely permission denied)")
             return emptyList()
         }
 
@@ -1599,7 +1599,7 @@ class ImageBrowserViewModel @Inject constructor(
             }
         }.also { images ->
             if (images.isEmpty()) {
-                Log.w(TAG, "queryImages: MediaStore query returned 0 images")
+                Logger.w(TAG, "queryImages: MediaStore query returned 0 images")
             }
         }
     }

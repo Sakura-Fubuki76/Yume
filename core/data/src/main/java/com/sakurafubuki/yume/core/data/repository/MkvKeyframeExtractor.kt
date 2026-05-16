@@ -1,6 +1,7 @@
 package com.sakurafubuki.yume.core.data.repository
 
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
+import com.sakurafubuki.yume.core.model.ChapterEntry
 import java.io.RandomAccessFile
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
@@ -43,17 +44,17 @@ class MkvKeyframeExtractor(
         cacheKey: String,
     ): Mp4KeyframeExtractor.ParsedMoov? {
         val contentLength = httpHead(url)
-        Log.d(BUG4_TAG, "MKV httpHead: $contentLength for ${url.take(80)}")
+        Logger.d(BUG4_TAG, "MKV httpHead: $contentLength for ${url.take(80)}")
         if (contentLength == null || contentLength < 4096) return null
 
         val headData = httpRange(url, 0, HEAD_SIZE.coerceAtMost(contentLength.toInt()))
         if (headData == null || headData.size < 32) return null
-        Log.d(BUG4_TAG, "MKV head: ${headData.size} bytes")
+        Logger.d(BUG4_TAG, "MKV head: ${headData.size} bytes")
 
         val (segOff, segSizeLen) = findSegmentStart(headData)
-            ?: return null.also { Log.w(BUG4_TAG, "MKV: cannot find Segment in head") }
+            ?: return null.also { Logger.w(BUG4_TAG, "MKV: cannot find Segment in head") }
         val segmentDataOff = segOff + 4 + segSizeLen
-        Log.d(BUG4_TAG, "MKV Segment: offset=$segOff dataStart=$segmentDataOff sizeLen=$segSizeLen")
+        Logger.d(BUG4_TAG, "MKV Segment: offset=$segOff dataStart=$segmentDataOff sizeLen=$segSizeLen")
 
         var seekPositions: Map<Long, Long>? = null
         val headSeekHead = findEbmlElement(headData, segmentDataOff.toInt(), headData.size, SEEK_HEAD_ID)
@@ -61,7 +62,7 @@ class MkvKeyframeExtractor(
             val (shOff, shSize) = headSeekHead
             if (shOff + shSize <= headData.size) {
                 seekPositions = parseSeekHead(headData, shOff.toInt(), shSize.toInt())
-                Log.d(BUG4_TAG, "MKV SeekHead found in head: ${seekPositions.size} entries")
+                Logger.d(BUG4_TAG, "MKV SeekHead found in head: ${seekPositions.size} entries, hasChapters=${seekPositions.containsKey(SEEK_CHAPTERS)}")
             }
         }
 
@@ -69,20 +70,20 @@ class MkvKeyframeExtractor(
             val tailSize = SEARCH_TAIL_SIZE.coerceAtMost(contentLength.toInt())
             val tailData = httpRange(url, contentLength - tailSize, tailSize)
             if (tailData != null) {
-                Log.d(BUG4_TAG, "MKV tail: ${tailData.size} bytes, searching for SeekHead...")
+                Logger.d(BUG4_TAG, "MKV tail: ${tailData.size} bytes, searching for SeekHead...")
                 val sh = findEbmlElementByScan(tailData, 0, tailData.size, SEEK_HEAD_ID)
                 if (sh != null) {
                     val (shOff, shSize) = sh
                     if (shOff + shSize <= tailData.size) {
                         seekPositions = parseSeekHead(tailData, shOff.toInt(), shSize.toInt())
-                        Log.d(BUG4_TAG, "MKV SeekHead found in tail: ${seekPositions.size} entries")
+                        Logger.d(BUG4_TAG, "MKV SeekHead found in tail: ${seekPositions.size} entries")
                     }
                 }
             }
         }
 
         if (seekPositions == null) {
-            Log.w(BUG4_TAG, "MKV: no SeekHead, trying direct Cues search...")
+            Logger.w(BUG4_TAG, "MKV: no SeekHead, trying direct Cues search...")
             return parseFromTailDirect(url, contentLength, segmentDataOff)
         }
 
@@ -91,20 +92,19 @@ class MkvKeyframeExtractor(
         val infoPos = seekPositions[SEEK_INFO]
 
         if (cuesPos == null || tracksPos == null) {
-            Log.w(BUG4_TAG, "MKV: SeekHead missing Cues or Tracks. cues=$cuesPos tracks=$tracksPos")
+            Logger.w(BUG4_TAG, "MKV: SeekHead missing Cues or Tracks. cues=$cuesPos tracks=$tracksPos")
             return parseFromTailDirect(url, contentLength, segmentDataOff)
         }
 
         val tracksFileOff = segmentDataOff + tracksPos
-        val tracksData = downloadRangeForOffset(url, contentLength, tracksFileOff, 65536)
-        if (tracksData == null) return null
+        val tracksData = downloadRangeForOffset(url, contentLength, tracksFileOff, 65536) ?: return null
         val tracksBodyOff = skipElementHeader(tracksData, 0)
         val (mime, width, height, codecPrivate, trackNumber) = parseTracks(
             tracksData,
             tracksBodyOff,
         ) ?: return null
         videoTrackNumber = trackNumber
-        Log.d(BUG4_TAG, "MKV Tracks: $mime ${width}x$height codecPrivate=${codecPrivate?.size ?: 0} track=$trackNumber")
+        Logger.d(BUG4_TAG, "MKV Tracks: $mime ${width}x$height codecPrivate=${codecPrivate?.size ?: 0} track=$trackNumber")
 
         var timecodeScaleNs = 1_000_000L
         var durationMs: Long? = null
@@ -119,7 +119,7 @@ class MkvKeyframeExtractor(
                 val (ts, dur) = parseInfo(infoData, infoBodyOff, timecodeScaleNs, infoBodyEnd)
                 if (ts != null) timecodeScaleNs = ts
                 if (dur != null) durationMs = dur
-                Log.d(BUG4_TAG, "MKV Info: timecodeScale=${timecodeScaleNs}ns duration=$durationMs")
+                Logger.d(BUG4_TAG, "MKV Info: timecodeScale=${timecodeScaleNs}ns duration=$durationMs")
             }
         }
 
@@ -128,13 +128,32 @@ class MkvKeyframeExtractor(
             512 * 1024L,
             (contentLength - cuesFileOff).coerceAtLeast(65536),
         ).toInt()
-        val cuesData = downloadRangeForOffset(url, contentLength, cuesFileOff, cuesSize)
-        if (cuesData == null) return null
+        val cuesData = downloadRangeForOffset(url, contentLength, cuesFileOff, cuesSize) ?: return null
         val cuesBodyOff = skipElementHeader(cuesData, 0)
         val keyframes = parseCues(cuesData, cuesBodyOff, segmentDataOff, timecodeScaleNs)
-        Log.d(BUG4_TAG, "MKV Cues: ${keyframes.size} keyframes from ${cuesData.size}B")
+        Logger.d(BUG4_TAG, "MKV Cues: ${keyframes.size} keyframes from ${cuesData.size}B")
 
         if (keyframes.isEmpty()) return null
+
+        var chapters: List<ChapterEntry> = emptyList()
+        val chaptersPos = seekPositions?.get(SEEK_CHAPTERS)
+        if (chaptersPos != null) {
+            val chaptersFileOff = segmentDataOff + chaptersPos
+            val chaptersData = downloadRangeForOffset(url, contentLength, chaptersFileOff, 65536)
+            if (chaptersData != null) {
+                val chaptersElem = findEbmlElementByScan(chaptersData, 0, chaptersData.size, CHAPTERS_ID)
+                if (chaptersElem != null) {
+                    val (chaptersOff, _) = chaptersElem
+                    val chaptersBodyOff = skipElementHeader(chaptersData, chaptersOff.toInt())
+                    chapters = parseChapters(chaptersData, chaptersBodyOff, timecodeScaleNs)
+                    Logger.d(BUG4_TAG, "MKV Chapters: ${chapters.size} entries (found at off=$chaptersOff in ${chaptersData.size}B data)")
+                } else {
+                    Logger.w(BUG4_TAG, "MKV Chapters: CHAPTERS_ID not found in downloaded data")
+                }
+            }
+        } else {
+            Logger.d(BUG4_TAG, "MKV Chapters: not in SeekHead, skipping")
+        }
 
         val codecConfig = if (codecPrivate != null && codecPrivate.isNotEmpty()) {
             parseCodecPrivate(mime, codecPrivate)
@@ -146,7 +165,7 @@ class MkvKeyframeExtractor(
 
         val moovInfo = Mp4KeyframeExtractor.MoovInfo(
             timescale = (timecodeScaleNs / 1_000_000).toInt().coerceAtLeast(1),
-            duration = if (durationMs != null) durationMs else 0L,
+            duration = durationMs ?: 0L,
             codecType = mime,
             width = width,
             height = height,
@@ -162,6 +181,17 @@ class MkvKeyframeExtractor(
             moovInfo = moovInfo,
             durationMs = durationMs ?: if (moovInfo.timescale > 0) moovInfo.duration * 1000 / moovInfo.timescale else null,
         )
+
+        MoovIndexCache.put(
+            url,
+            MoovIndexCache.Entry(
+                keyframes = keyframes,
+                contentLength = contentLength,
+                durationMs = parsed.durationMs,
+                chapters = chapters,
+            ),
+        )
+        Logger.d(BUG4_TAG, "MKV MoovIndexCache stored: ${keyframes.size} keyframes, ${chapters.size} chapters")
 
         return parsed
     }
@@ -541,6 +571,114 @@ class MkvKeyframeExtractor(
         }
     }
 
+    private fun parseChapters(
+        data: ByteArray,
+        offset: Int,
+        timecodeScaleNs: Long,
+    ): List<ChapterEntry> {
+        val chapters = mutableListOf<Pair<Long, String>>()
+        var off = offset
+        val end = data.size
+        while (off + 3 <= end) {
+            val (id, idLen) = readElementId(data, off)
+            val (size, sizeLen) = readVint(data, off + idLen)
+            val dataStart = off + idLen + sizeLen
+            val dataEnd = minOf(data.size, dataStart + maxOf(size, 1L).toInt())
+
+            when (id) {
+                EDITION_ENTRY_ID -> {
+                    parseEditionEntry(data, dataStart, dataEnd, timecodeScaleNs, chapters)
+                }
+            }
+
+            off += idLen + sizeLen + maxOf(size, 1L).toInt()
+        }
+
+        chapters.sortBy { it.first }
+
+        return chapters.mapIndexed { i, (start, title) ->
+            val endMs = if (i + 1 < chapters.size) chapters[i + 1].first else Long.MAX_VALUE
+            ChapterEntry(startTimeMs = start, endTimeMs = endMs, title = title)
+        }
+    }
+
+    private fun parseEditionEntry(
+        data: ByteArray,
+        start: Int,
+        end: Int,
+        timecodeScaleNs: Long,
+        chapters: MutableList<Pair<Long, String>>,
+    ) {
+        var off = start
+        while (off + 3 <= end) {
+            val (id, idLen) = readElementId(data, off)
+            val (size, sizeLen) = readVint(data, off + idLen)
+            val dataStart = off + idLen + sizeLen
+            val dataEnd = minOf(data.size, dataStart + maxOf(size, 1L).toInt())
+
+            if (id == CHAPTER_ATOM_ID) {
+                parseChapterAtom(data, dataStart, dataEnd, timecodeScaleNs, chapters)
+            }
+
+            off += idLen + sizeLen + maxOf(size, 1L).toInt()
+        }
+    }
+
+    private fun parseChapterAtom(
+        data: ByteArray,
+        start: Int,
+        end: Int,
+        timecodeScaleNs: Long,
+        chapters: MutableList<Pair<Long, String>>,
+    ) {
+        var startTimeMs: Long? = null
+        var title: String? = null
+        var off = start
+        while (off + 3 <= end) {
+            val (id, idLen) = readElementId(data, off)
+            val (size, sizeLen) = readVint(data, off + idLen)
+            val valueOff = off + idLen + sizeLen
+            val valueLen = minOf(maxOf(size, 1L).toInt(), data.size - valueOff)
+
+            when (id) {
+                CHAPTER_TIME_START_ID -> {
+                    val startTimeNs = readUint(data, valueOff, valueLen)
+                    startTimeMs = startTimeNs / 1_000_000L
+                }
+                CHAPTER_DISPLAY_ID -> {
+                    if (title == null) {
+                        title = parseChapterDisplay(data, valueOff, minOf(data.size, valueOff + valueLen))
+                    }
+                }
+            }
+
+            off += idLen + sizeLen + maxOf(valueLen, 1)
+        }
+
+        if (startTimeMs != null && !title.isNullOrBlank()) {
+            val formatted = "%d:%02d".format(startTimeMs / 60000, (startTimeMs % 60000) / 1000)
+            Logger.d(BUG4_TAG, "MKV chapter: $formatted \"$title\"")
+            chapters.add(startTimeMs to title!!)
+        }
+    }
+
+    private fun parseChapterDisplay(data: ByteArray, start: Int, end: Int): String? {
+        var off = start
+        while (off + 3 <= end) {
+            val (id, idLen) = readElementId(data, off)
+            val (size, sizeLen) = readVint(data, off + idLen)
+            val valueOff = off + idLen + sizeLen
+            val valueLen = minOf(maxOf(size, 1L).toInt(), data.size - valueOff)
+
+            if (id == CHAPTER_STRING_ID && valueLen > 0) {
+                return String(data, valueOff, valueLen, Charsets.UTF_8).trimEnd('\u0000')
+            }
+
+            off += idLen + sizeLen + maxOf(valueLen, 1)
+        }
+        return null
+    }
+
     private fun parseCuePoint(data: ByteArray, start: Int, end: Int): ClusterEntry? {
         var cueTime: Long? = null
         var clusterPosition: Long? = null
@@ -775,10 +913,10 @@ class MkvKeyframeExtractor(
                 .header("Range", "bytes=$start-$end")
                 .header("Accept", "*/*")
                 .build()
-            Log.d(BUG4_TAG, "MKV httpRange: $start-$end (${size}B)")
+            Logger.d(BUG4_TAG, "MKV httpRange: $start-$end (${size}B)")
             okHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful && response.code != 206) {
-                    Log.d(BUG4_TAG, "MKV httpRange FAIL: code=${response.code}")
+                    Logger.d(BUG4_TAG, "MKV httpRange FAIL: code=${response.code}")
                     return null
                 }
                 val body = response.body ?: return null
@@ -786,7 +924,7 @@ class MkvKeyframeExtractor(
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Log.d(BUG4_TAG, "MKV httpRange EXCEPTION: ${e.message}")
+            Logger.d(BUG4_TAG, "MKV httpRange EXCEPTION: ${e.message}")
             null
         }
     }
@@ -809,12 +947,11 @@ class MkvKeyframeExtractor(
         segmentDataOff: Long,
     ): Mp4KeyframeExtractor.ParsedMoov? {
         val tailSize = (SEARCH_TAIL_SIZE * 2).coerceAtMost(contentLength.toInt())
-        val tailData = httpRange(url, contentLength - tailSize, tailSize)
-        if (tailData == null) return null
+        val tailData = httpRange(url, contentLength - tailSize, tailSize) ?: return null
 
         val cues = findEbmlElementByScan(tailData, 0, tailData.size, CUES_ID)
         if (cues == null) {
-            Log.w(BUG4_TAG, "MKV direct: no Cues found in tail")
+            Logger.w(BUG4_TAG, "MKV direct: no Cues found in tail")
             return null
         }
 
@@ -842,13 +979,13 @@ class MkvKeyframeExtractor(
         )
     }
 
-    private fun codecIdToMime(codecId: String): String? = when {
-        codecId == "V_MPEG4/ISO/AVC" -> "video/avc"
-        codecId == "V_MPEGH/ISO/HEVC" -> "video/hevc"
-        codecId == "V_MPEG4/ISO/ASP" -> "video/mp4v-es"
-        codecId == "V_VP8" -> "video/x-vnd.on2.vp8"
-        codecId == "V_VP9" -> "video/x-vnd.on2.vp9"
-        codecId == "V_AV1" -> "video/av01"
+    private fun codecIdToMime(codecId: String): String? = when (codecId) {
+        "V_MPEG4/ISO/AVC" -> "video/avc"
+        "V_MPEGH/ISO/HEVC" -> "video/hevc"
+        "V_MPEG4/ISO/ASP" -> "video/mp4v-es"
+        "V_VP8" -> "video/x-vnd.on2.vp8"
+        "V_VP9" -> "video/x-vnd.on2.vp9"
+        "V_AV1" -> "video/av01"
         else -> null
     }
 
@@ -856,10 +993,10 @@ class MkvKeyframeExtractor(
         mime: String,
         data: ByteArray,
     ): Mp4KeyframeExtractor.CodecConfig? {
-        when (mime) {
-            "video/avc" -> return parseAvcC(data)
-            "video/hevc" -> return parseHvcC(data)
-            else -> return Mp4KeyframeExtractor.CodecConfig(mime, 4, emptyList())
+        return when (mime) {
+            "video/avc" -> parseAvcC(data)
+            "video/hevc" -> parseHvcC(data)
+            else -> Mp4KeyframeExtractor.CodecConfig(mime, 4, emptyList())
         }
     }
 
@@ -961,7 +1098,31 @@ class MkvKeyframeExtractor(
         val height: Int,
         val codecPrivate: ByteArray?,
         val trackNumber: Long,
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as Quintet
+
+            if (width != other.width) return false
+            if (height != other.height) return false
+            if (trackNumber != other.trackNumber) return false
+            if (mime != other.mime) return false
+            if (!codecPrivate.contentEquals(other.codecPrivate)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = width
+            result = 31 * result + height
+            result = 31 * result + trackNumber.hashCode()
+            result = 31 * result + mime.hashCode()
+            result = 31 * result + (codecPrivate?.contentHashCode() ?: 0)
+            return result
+        }
+    }
 
     companion object {
         private const val BUG4_TAG = "BUG4_HttpExtractor"
@@ -997,6 +1158,16 @@ class MkvKeyframeExtractor(
         private const val SEEK_CUES = CUES_ID
         private const val SEEK_TRACKS = TRACKS_ID
         private const val SEEK_INFO = INFO_ID
+
+        private const val CHAPTERS_ID = 0x1043A770L
+        private const val EDITION_ENTRY_ID = 0x45B9L
+        private const val CHAPTER_ATOM_ID = 0xB6L
+        private const val CHAPTER_TIME_START_ID = 0x91L
+        private const val CHAPTER_TIME_END_ID = 0x92L
+        private const val CHAPTER_DISPLAY_ID = 0x80L
+        private const val CHAPTER_STRING_ID = 0x85L
+
+        private const val SEEK_CHAPTERS = CHAPTERS_ID
 
         private const val HEAD_SIZE = 65536
         private const val SEARCH_TAIL_SIZE = 1048576

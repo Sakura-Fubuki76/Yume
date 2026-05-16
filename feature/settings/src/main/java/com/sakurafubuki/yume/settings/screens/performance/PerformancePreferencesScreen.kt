@@ -50,7 +50,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sakurafubuki.yume.core.model.ApplicationPreferences
 import com.sakurafubuki.yume.core.model.CacheExpiry
-import com.sakurafubuki.yume.core.model.CdnNode
+
 import com.sakurafubuki.yume.core.ui.R
 import com.sakurafubuki.yume.core.ui.components.CancelButton
 import com.sakurafubuki.yume.core.ui.components.ClickablePreferenceItem
@@ -353,11 +353,6 @@ private fun PerformancePreferencesContent(
                 )
             }
 
-            CdnOptimizationSection(
-                uiState = uiState,
-                onEvent = onEvent,
-            )
-
             pendingCustomValueInput?.let { dialogState ->
                 CustomValueInputDialog(
                     state = dialogState,
@@ -567,192 +562,6 @@ private fun CloudImageCacheExpiryPicker(
                 }
             },
         )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun CdnOptimizationSection(
-    uiState: MediaLibraryPreferencesUiState,
-    onEvent: (MediaLibraryPreferencesUiEvent) -> Unit,
-) {
-    val selectedHostname = uiState.cdnHostname.ifBlank {
-        uiState.preferences.cdnSelections.keys.firstOrNull() ?: ""
-    }
-
-    LaunchedEffect(selectedHostname) {
-        if (selectedHostname.isNotBlank() && uiState.cdnHostname.isBlank()) {
-            onEvent(MediaLibraryPreferencesUiEvent.UpdateCdnHostname(selectedHostname))
-        }
-    }
-
-    ListSectionTitle(text = stringResource(id = R.string.cdn_optimization))
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        OutlinedTextField(
-            value = uiState.cdnHostname,
-            onValueChange = { onEvent(MediaLibraryPreferencesUiEvent.UpdateCdnHostname(it)) },
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-            placeholder = { Text(stringResource(R.string.cdn_hostname_hint)) },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-        )
-        Spacer(Modifier.width(8.dp))
-        FilledTonalIconButton(
-            onClick = { onEvent(MediaLibraryPreferencesUiEvent.StartCdnScan(uiState.cdnHostname)) },
-            enabled = uiState.cdnHostname.isNotBlank() && !uiState.cdnIsScanning,
-        ) {
-            if (uiState.cdnIsScanning) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                )
-            } else {
-                Icon(
-                    imageVector = NextIcons.Speed,
-                    contentDescription = stringResource(R.string.cdn_scan),
-                )
-            }
-        }
-    }
-
-    uiState.cdnScanError?.let { error ->
-        Text(
-            text = stringResource(R.string.cdn_scan_error, error),
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodySmall,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
-        )
-    }
-
-    AnimatedVisibility(
-        visible = uiState.cdnScanResults.isNotEmpty(),
-        enter = expandVertically(),
-        exit = shrinkVertically(),
-    ) {
-        Column {
-            uiState.cdnScanResults.forEachIndexed { index, node ->
-                val isSelected = uiState.preferences.cdnSelections[uiState.cdnHostname] == node.ip
-                CdnNodeItem(
-                    node = node,
-                    isSelected = isSelected,
-                    isFirstItem = index == 0,
-                    isLastItem = index == uiState.cdnScanResults.lastIndex,
-                    onClick = {
-                        onEvent(MediaLibraryPreferencesUiEvent.SelectCdnNode(uiState.cdnHostname, node.ip))
-                    },
-                )
-            }
-        }
-    }
-
-    if (!uiState.cdnIsScanning && uiState.cdnScanResults.isEmpty() && uiState.cdnScanError == null && uiState.cdnHostname.isNotBlank()) {
-        Text(
-            text = stringResource(R.string.cdn_no_results),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
-        )
-    }
-
-    val savedSelections = uiState.preferences.cdnSelections
-    if (savedSelections.isNotEmpty()) {
-        Spacer(Modifier.height(12.dp))
-        ListSectionTitle(text = stringResource(id = R.string.cdn_saved_selections))
-        Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-            savedSelections.entries.forEachIndexed { index, (hostname, selectedIp) ->
-                val lastScanResult = uiState.preferences.cdnLastScanResults[hostname]
-                    ?.firstOrNull { it.ip == selectedIp }
-                val description = if (lastScanResult != null) {
-                    stringResource(R.string.cdn_latency_ms, lastScanResult.latencyMs)
-                } else {
-                    selectedIp
-                }
-                ClickablePreferenceItem(
-                    title = hostname,
-                    description = description,
-                    icon = NextIcons.Cloud,
-                    onClick = {
-                        onEvent(MediaLibraryPreferencesUiEvent.UpdateCdnHostname(hostname))
-                        onEvent(MediaLibraryPreferencesUiEvent.StartCdnScan(hostname))
-                    },
-                    trailingContent = {
-                        IconButton(onClick = {
-                            onEvent(MediaLibraryPreferencesUiEvent.ClearCdnSelection(hostname))
-                        }) {
-                            Icon(
-                                imageVector = NextIcons.Close,
-                                contentDescription = stringResource(R.string.cdn_clear_selection),
-                            )
-                        }
-                    },
-                    isFirstItem = index == 0,
-                    isLastItem = index == savedSelections.size - 1,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CdnNodeItem(
-    node: CdnNode,
-    isSelected: Boolean,
-    isFirstItem: Boolean,
-    isLastItem: Boolean,
-    onClick: () -> Unit,
-) {
-    val latencyColor = when {
-        node.latencyMs < 20 -> MaterialTheme.colorScheme.primary
-        node.latencyMs < 50 -> MaterialTheme.colorScheme.tertiary
-        node.latencyMs < 100 -> MaterialTheme.colorScheme.onSurfaceVariant
-        else -> MaterialTheme.colorScheme.error
-    }
-
-    ListItem(
-        headlineContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = node.ip,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                )
-                if (isSelected) {
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        imageVector = NextIcons.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
-        },
-        supportingContent = {
-            Text(
-                text = stringResource(R.string.cdn_latency_ms, node.latencyMs),
-                color = latencyColor,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        },
-        leadingContent = {
-            Icon(
-                imageVector = if (isSelected) NextIcons.CheckBox else NextIcons.CheckBoxOutline,
-                contentDescription = null,
-                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-    )
-    if (!isLastItem) {
-        HorizontalDivider(modifier = Modifier.padding(start = 56.dp))
     }
 }
 

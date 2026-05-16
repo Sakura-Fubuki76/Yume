@@ -2,7 +2,7 @@ package com.sakurafubuki.yume.feature.player.effect
 
 import android.content.Context
 import android.opengl.GLES30
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import androidx.annotation.OptIn
 import androidx.media3.common.util.GlProgram
 import androidx.media3.common.util.Size
@@ -43,11 +43,11 @@ private class Anime4KClampHighlightsShaderProgram(
 
     override fun configure(inputWidth: Int, inputHeight: Int): Size {
         passThroughProgram = runCatching { GlProgram(VERTEX_SHADER, PASS_THROUGH_FRAG).also(::setupVertexBuffers) }
-            .onFailure { Log.w(TAG, "Anime4K clamp pass-through compilation failed", it) }
+            .onFailure { Logger.w(TAG, "Anime4K clamp pass-through compilation failed", it) }
             .getOrNull()
         program = runCatching { GlProgram(VERTEX_SHADER, CLAMP_HIGHLIGHTS_FRAG).also(::setupVertexBuffers) }
             .onFailure {
-                Log.w(TAG, "Anime4K clamp shader compilation failed", it)
+                Logger.w(TAG, "Anime4K clamp shader compilation failed", it)
                 failed = true
             }
             .getOrNull()
@@ -77,7 +77,7 @@ private class Anime4KClampHighlightsShaderProgram(
             GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
             checkGlError("Anime4K clamp")
         } catch (e: Exception) {
-            Log.w(TAG, "Anime4K clamp drawFrame failed", e)
+            Logger.w(TAG, "Anime4K clamp drawFrame failed", e)
             failed = true
             drawPassThrough(inputTexId, outputFbo, passThroughProgram)
         }
@@ -123,7 +123,7 @@ private fun drawPassThrough(inputTexId: Int, outputFbo: Int, program: GlProgram?
 private fun checkGlError(tag: String) {
     val err = GLES30.glGetError()
     if (err != GLES30.GL_NO_ERROR) {
-        Log.w(TAG, "$tag GL error: 0x${Integer.toHexString(err)}")
+        Logger.w(TAG, "$tag GL error: 0x${Integer.toHexString(err)}")
     }
 }
 

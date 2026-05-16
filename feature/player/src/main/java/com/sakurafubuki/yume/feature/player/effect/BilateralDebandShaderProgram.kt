@@ -1,7 +1,7 @@
 package com.sakurafubuki.yume.feature.player.effect
 
 import android.opengl.GLES30
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import androidx.media3.common.util.GlProgram
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
@@ -28,14 +28,14 @@ class BilateralDebandShaderProgram(
         passThroughProgram = runCatching {
             GlProgram(VERTEX_SHADER, PASS_THROUGH_FRAG).also(::setupVertexBuffers)
         }.onFailure {
-            Log.w(TAG, "Deband pass-through shader compilation failed", it)
+            Logger.w(TAG, "Deband pass-through shader compilation failed", it)
         }.getOrNull()
 
         try {
             blurProgram = GlProgram(VERTEX_SHADER, buildBilateralFragShader()).also(::setupVertexBuffers)
             debandProgram = GlProgram(VERTEX_SHADER, DEBAND_FRAG_SHADER).also(::setupVertexBuffers)
         } catch (e: Exception) {
-            Log.w(TAG, "Deband shader compilation failed, falling back to pass-through", e)
+            Logger.w(TAG, "Deband shader compilation failed, falling back to pass-through", e)
             shaderInitFailed = true
         }
         return Size(inputWidth, inputHeight)
@@ -84,7 +84,7 @@ class BilateralDebandShaderProgram(
             GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
             checkGlError("Deband pass 2")
         } catch (e: Exception) {
-            Log.w(TAG, "Deband drawFrame failed, disabling effect", e)
+            Logger.w(TAG, "Deband drawFrame failed, disabling effect", e)
             shaderInitFailed = true
             drawPassThrough(inputTexId, outputFbo)
         }
@@ -155,7 +155,7 @@ class BilateralDebandShaderProgram(
         )
         val fboStatus = GLES30.glCheckFramebufferStatus(GLES30.GL_FRAMEBUFFER)
         if (fboStatus != GLES30.GL_FRAMEBUFFER_COMPLETE) {
-            Log.w(TAG, "Intermediate FBO incomplete: 0x${Integer.toHexString(fboStatus)}")
+            Logger.w(TAG, "Intermediate FBO incomplete: 0x${Integer.toHexString(fboStatus)}")
             GLES30.glDeleteFramebuffers(1, intArrayOf(intermediateFboId), 0)
             GLES30.glDeleteTextures(1, intArrayOf(intermediateTextureId), 0)
             intermediateFboId = 0
@@ -178,7 +178,7 @@ class BilateralDebandShaderProgram(
     private fun checkGlError(tag: String) {
         val err = GLES30.glGetError()
         if (err != GLES30.GL_NO_ERROR) {
-            Log.w(TAG, "$tag GL error: 0x${Integer.toHexString(err)}")
+            Logger.w(TAG, "$tag GL error: 0x${Integer.toHexString(err)}")
         }
     }
 

@@ -9,7 +9,6 @@ import android.media.MediaCodecList
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
-import android.util.Log
 import com.sakurafubuki.yume.core.common.Logger
 import java.io.File
 import java.io.FileOutputStream
@@ -88,7 +87,7 @@ object SpriteSheetGenerator {
                 generateFromMediaExtractor(source, durationMs, spriteFile, metaFile, cacheDir, cacheKey, context)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Sprite sheet generation failed", e)
+            Logger.e(TAG, "Sprite sheet generation failed", e)
             null
         }
     }
@@ -106,7 +105,7 @@ object SpriteSheetGenerator {
         val spriteFile = File(cacheDir, "$cacheKey.webp")
         val metaFile = File(cacheDir, "$cacheKey.json")
 
-        android.util.Log.d("BUG4_SpriteSheet", "generateFromMoov: isLocal=$isLocal source=${source.take(100)} httpHeaders=$httpHeaders")
+        Logger.d("BUG4_SpriteSheet", "generateFromMoov: isLocal=$isLocal source=${source.take(100)} httpHeaders=$httpHeaders")
         val okHttpClient = if (isLocal) OkHttpClient() else buildOkHttpClient(httpHeaders)
         val mp4Extractor = Mp4KeyframeExtractor(okHttpClient)
 
@@ -116,16 +115,16 @@ object SpriteSheetGenerator {
             mp4Extractor.loadParsedMoov(source)
         }
         if (parsed == null) {
-            android.util.Log.w("BUG4_SpriteSheet", "parsed is null for ${source.take(100)}, falling back to MediaExtractor")
-            Log.w(TAG, "Failed to parse moov for $source, falling back to MediaExtractor")
+            Logger.w("BUG4_SpriteSheet", "parsed is null for ${source.take(100)}, falling back to MediaExtractor")
+            Logger.w(TAG, "Failed to parse moov for $source, falling back to MediaExtractor")
             return generateFromMediaExtractor(source, durationMs, spriteFile, metaFile, cacheDir, cacheKey)
         }
 
         val moovInfo = parsed.moovInfo
-        android.util.Log.d("BUG4_SpriteSheet", "parsed OK: moovInfo=${moovInfo != null} keyframes=${moovInfo?.keyframes?.size ?: 0} durationMs=${parsed.durationMs}")
+        Logger.d("BUG4_SpriteSheet", "parsed OK: moovInfo=${moovInfo != null} keyframes=${moovInfo?.keyframes?.size ?: 0} durationMs=${parsed.durationMs}")
         if (moovInfo == null || moovInfo.keyframes.isEmpty()) {
-            android.util.Log.w("BUG4_SpriteSheet", "No keyframes in moov for ${source.take(100)}, falling back to MediaExtractor")
-            Log.w(TAG, "No keyframe index in moov for $source, falling back to MediaExtractor")
+            Logger.w("BUG4_SpriteSheet", "No keyframes in moov for ${source.take(100)}, falling back to MediaExtractor")
+            Logger.w(TAG, "No keyframe index in moov for $source, falling back to MediaExtractor")
             return generateFromMediaExtractor(source, durationMs, spriteFile, metaFile, cacheDir, cacheKey)
         }
 
@@ -186,7 +185,7 @@ object SpriteSheetGenerator {
             if (kf != null) FrameTarget(i, kf) else null
         }
         Logger.d(TAG, "Selected ${targets.size} targets out of ${allKeyframes.size} keyframes")
-        android.util.Log.d("BUG4_SpriteSheet", "Selected ${targets.size} targets, reading keyframe data...")
+        Logger.d("BUG4_SpriteSheet", "Selected ${targets.size} targets, reading keyframe data...")
 
         val readStart = System.currentTimeMillis()
         val pairedData: List<Pair<FrameTarget, ByteArray?>> = targets.chunked(MAX_CONCURRENT_DOWNLOADS).flatMap { batch ->
@@ -267,12 +266,12 @@ object SpriteSheetGenerator {
             }
         }
         Logger.d(TAG, "Decoded+scaled+composited $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
-        android.util.Log.d("BUG4_SpriteSheet", "Decoded $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
+        Logger.d("BUG4_SpriteSheet", "Decoded $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
 
         if (framesDownloaded == 0) {
             spriteSheet.recycle()
-            android.util.Log.w("BUG4_SpriteSheet", "No frames downloaded for ${source.take(100)}")
-            Log.w(TAG, "No frames downloaded for $source")
+            Logger.w("BUG4_SpriteSheet", "No frames downloaded for ${source.take(100)}")
+            Logger.w(TAG, "No frames downloaded for $source")
             return null
         }
 
@@ -290,7 +289,7 @@ object SpriteSheetGenerator {
             "Saved ${spriteFile.length() / 1024}KB in ${System.currentTimeMillis() - saveStart}ms. " +
                 "Total: ${totalElapsed}ms, $framesDownloaded frames, ${bytesDownloaded / 1024}KB downloaded",
         )
-        android.util.Log.d("BUG4_SpriteSheet", "SUCCESS: ${spriteFile.length() / 1024}KB sprite sheet in ${totalElapsed}ms")
+        Logger.d("BUG4_SpriteSheet", "SUCCESS: ${spriteFile.length() / 1024}KB sprite sheet in ${totalElapsed}ms")
         return SpriteSheetResult(spriteFile, metadata)
     }
 
@@ -305,23 +304,23 @@ object SpriteSheetGenerator {
         val spriteFile = File(cacheDir, "$cacheKey.webp")
         val metaFile = File(cacheDir, "$cacheKey.json")
 
-        android.util.Log.d("BUG4_SpriteSheet", "generateFromMkv: source=${source.take(100)}")
+        Logger.d("BUG4_SpriteSheet", "generateFromMkv: source=${source.take(100)}")
         val okHttpClient = buildOkHttpClient(httpHeaders)
         val mkvExtractor = MkvKeyframeExtractor(okHttpClient)
         val mp4Extractor = Mp4KeyframeExtractor(okHttpClient)
 
         val parsed = mkvExtractor.loadParsedMkv(source)
         if (parsed == null) {
-            android.util.Log.w("BUG4_SpriteSheet", "MKV parsed is null for ${source.take(100)}, falling back to MediaExtractor")
-            Log.w(TAG, "Failed to parse MKV for $source, falling back to MediaExtractor")
+            Logger.w("BUG4_SpriteSheet", "MKV parsed is null for ${source.take(100)}, falling back to MediaExtractor")
+            Logger.w(TAG, "Failed to parse MKV for $source, falling back to MediaExtractor")
             return generateFromMediaExtractor(source, durationMs, spriteFile, metaFile, cacheDir, cacheKey, context)
         }
 
         val moovInfo = parsed.moovInfo
-        android.util.Log.d("BUG4_SpriteSheet", "MKV parsed OK: moovInfo=${moovInfo != null} keyframes=${moovInfo?.keyframes?.size ?: 0}")
+        Logger.d("BUG4_SpriteSheet", "MKV parsed OK: moovInfo=${moovInfo != null} keyframes=${moovInfo?.keyframes?.size ?: 0}")
         if (moovInfo == null || moovInfo.keyframes.isEmpty()) {
-            android.util.Log.w("BUG4_SpriteSheet", "No keyframes in MKV for ${source.take(100)}, falling back to MediaExtractor")
-            Log.w(TAG, "No keyframe index in MKV for $source, falling back to MediaExtractor")
+            Logger.w("BUG4_SpriteSheet", "No keyframes in MKV for ${source.take(100)}, falling back to MediaExtractor")
+            Logger.w(TAG, "No keyframe index in MKV for $source, falling back to MediaExtractor")
             return generateFromMediaExtractor(source, durationMs, spriteFile, metaFile, cacheDir, cacheKey, context)
         }
 
@@ -380,7 +379,7 @@ object SpriteSheetGenerator {
             if (kf != null) FrameTarget(i, kf) else null
         }
         Logger.d(TAG, "MKV selected ${targets.size} targets out of ${allKeyframes.size} keyframes")
-        android.util.Log.d("BUG4_SpriteSheet", "MKV selected ${targets.size} targets")
+        Logger.d("BUG4_SpriteSheet", "MKV selected ${targets.size} targets")
 
         val trackNumber = mkvExtractor.videoTrackNumber
         val readStart = System.currentTimeMillis()
@@ -462,12 +461,12 @@ object SpriteSheetGenerator {
             }
         }
         Logger.d(TAG, "MKV decoded+scaled+composited $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
-        android.util.Log.d("BUG4_SpriteSheet", "MKV decoded $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
+        Logger.d("BUG4_SpriteSheet", "MKV decoded $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
 
         if (framesDownloaded == 0) {
             spriteSheet.recycle()
-            android.util.Log.w("BUG4_SpriteSheet", "MKV no frames downloaded for ${source.take(100)}")
-            Log.w(TAG, "MKV no frames for $source")
+            Logger.w("BUG4_SpriteSheet", "MKV no frames downloaded for ${source.take(100)}")
+            Logger.w(TAG, "MKV no frames for $source")
             return null
         }
 
@@ -485,7 +484,7 @@ object SpriteSheetGenerator {
             "MKV saved ${spriteFile.length() / 1024}KB in ${System.currentTimeMillis() - saveStart}ms. " +
                 "Total: ${totalElapsed}ms, $framesDownloaded frames, ${bytesDownloaded / 1024}KB downloaded",
         )
-        android.util.Log.d("BUG4_SpriteSheet", "MKV SUCCESS: ${spriteFile.length() / 1024}KB sprite sheet in ${totalElapsed}ms")
+        Logger.d("BUG4_SpriteSheet", "MKV SUCCESS: ${spriteFile.length() / 1024}KB sprite sheet in ${totalElapsed}ms")
         return SpriteSheetResult(spriteFile, metadata)
     }
 
@@ -534,7 +533,7 @@ object SpriteSheetGenerator {
         val videoTrackIndex = findVideoTrack(extractor)
         if (videoTrackIndex < 0) {
             extractor.release()
-            Log.w(TAG, "No video track found in $source")
+            Logger.w(TAG, "No video track found in $source")
             return null
         }
         extractor.selectTrack(videoTrackIndex)
@@ -548,7 +547,7 @@ object SpriteSheetGenerator {
         val codecName = findBestDecoderForMime(mime)
             ?: run {
                 extractor.release()
-                Log.w(TAG, "No decoder for $mime")
+                Logger.w(TAG, "No decoder for $mime")
                 return null
             }
 
@@ -731,15 +730,15 @@ object SpriteSheetGenerator {
                     outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> {
                     }
                     else -> {
-                        Log.w(TAG, "Unexpected dequeue result: $outputIndex")
+                        Logger.w(TAG, "Unexpected dequeue result: $outputIndex")
                         return
                     }
                 }
             }
 
-            Log.w(TAG, "Decode timeout")
+            Logger.w(TAG, "Decode timeout")
         } catch (e: Exception) {
-            Log.w(TAG, "decodeOneFrameToImage failed: ${e.message}")
+            Logger.w(TAG, "decodeOneFrameToImage failed: ${e.message}")
         }
     }
 

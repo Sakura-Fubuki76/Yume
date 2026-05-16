@@ -78,7 +78,7 @@ class SpriteSheetState(
         val source = resolveSource(mediaId)
         val httpHeaders = resolveHttpHeaders(mediaId)
 
-        android.util.Log.d(
+        Logger.d(
             "BUG4_SpriteSheet",
             "generate: mediaId=${mediaId.take(100)} source=${source.take(100)} " +
                 "durationMs=$durationMs httpHeaders=$httpHeaders",
@@ -203,7 +203,7 @@ class SpriteSheetState(
         }
 
         if (Utils.isBaiduNetdiskUrl(mediaId)) {
-            android.util.Log.d("BUG4_SpriteSheet", "resolveHttpHeaders: Baidu detected -> User-Agent: pan.baidu.com")
+            Logger.d("BUG4_SpriteSheet", "resolveHttpHeaders: Baidu detected -> User-Agent: pan.baidu.com")
             return mapOf("User-Agent" to "pan.baidu.com")
         }
 

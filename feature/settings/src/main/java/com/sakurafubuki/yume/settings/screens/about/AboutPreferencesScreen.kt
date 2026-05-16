@@ -244,11 +244,8 @@ private fun Context.appVersion(): String {
     val packageInfo = packageManager.getPackageInfo(packageName, 0)
 
     @Suppress("DEPRECATION")
-    val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+    val versionCode =
         packageInfo.longVersionCode
-    } else {
-        packageInfo.versionCode
-    }
 
     return "${packageInfo.versionName} ($versionCode)"
 }

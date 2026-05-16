@@ -407,15 +407,6 @@
     <string name="webdav_port">端口</string>
     <string name="webdav_path">路径</string>
     <string name="image_browser_thumbnail_size_original">原始尺寸</string>
-    <string name="cdn_optimization">CDN 优选</string>
-    <string name="cdn_hostname_hint">主机名（如 d.pcs.baidu.com）</string>
-    <string name="cdn_scan">测速</string>
-    <string name="cdn_scanning">测速中…</string>
-    <string name="cdn_scan_error">测速失败：%1$s</string>
-    <string name="cdn_latency_ms">%1$d 毫秒</string>
-    <string name="cdn_no_results">未发现可达节点</string>
-    <string name="cdn_saved_selections">已保存的 CDN 优选</string>
-    <string name="cdn_clear_selection">清除</string>
     <string name="loading_cloud_media">正在加载云端媒体…</string>
     <string name="load_failed">加载失败</string>
     <string name="time_separator"> / </string>

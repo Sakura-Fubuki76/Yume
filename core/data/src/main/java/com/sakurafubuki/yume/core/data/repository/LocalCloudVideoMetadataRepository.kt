@@ -7,7 +7,6 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build.VERSION.SDK_INT
 import android.util.Base64
-import android.util.Log
 import androidx.core.graphics.get
 import coil3.ImageLoader
 import coil3.memory.MemoryCache
@@ -321,7 +320,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
                                     captureMetadata(server, item)
                                 } catch (e: Exception) {
                                     if (e is CancellationException) throw e
-                                    Log.w(TAG, "captureMetadata: unhandled exception server=${server.id} href=${item.href}", e)
+                                    Logger.w(TAG, "captureMetadata: unhandled exception server=${server.id} href=${item.href}", e)
                                     CapturedMetadata(durationMs = 0L, thumbnailPath = null)
                                 }
                             } else {
@@ -362,7 +361,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
                                     existing[entity.href] = entity
                                 }
                             }.onFailure { e ->
-                                Log.w(TAG, "cacheMissingMetadata: upsert failed server=${server.id} href=${item.href}", e)
+                                Logger.w(TAG, "cacheMissingMetadata: upsert failed server=${server.id} href=${item.href}", e)
                             }
                             if (resolvedDurationMs > 0L || !resolvedThumbnailPath.isNullOrBlank()) {
                                 runCatching {
@@ -476,7 +475,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
                 null
             } catch (e: OutOfMemoryError) {
                 val elapsed = System.currentTimeMillis() - binaryStartMs
-                Log.w(TAG, "captureMetadata: binary MP4 OOM after ${elapsed}ms server=${server.id} href=${item.href}", e)
+                Logger.w(TAG, "captureMetadata: binary MP4 OOM after ${elapsed}ms server=${server.id} href=${item.href}", e)
                 null
             }
 
@@ -547,7 +546,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (oom: OutOfMemoryError) {
-                Log.w(TAG, "captureMetadata: retriever OOM server=${server.id} mode=${candidate.label} href=${item.href}", oom)
+                Logger.w(TAG, "captureMetadata: retriever OOM server=${server.id} mode=${candidate.label} href=${item.href}", oom)
                 Result.failure(RuntimeException("Retriever OOM", oom))
             } catch (exception: Exception) {
                 Result.failure(exception)
@@ -556,12 +555,12 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
                 if (metadata.durationMs > 0L || !metadata.thumbnailPath.isNullOrBlank()) {
                     return metadata
                 }
-                Log.w(
+                Logger.w(
                     TAG,
                     "captureMetadata: empty result server=${server.id} mode=${candidate.label} href=${item.href}",
                 )
             }.onFailure { throwable ->
-                Log.w(
+                Logger.w(
                     TAG,
                     "captureMetadata: failed server=${server.id} mode=${candidate.label} href=${item.href} error=${throwable.message}",
                     throwable,

@@ -86,6 +86,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.shouldShowRationale
+import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.common.VideoThumbnailStore
 import com.sakurafubuki.yume.core.common.storagePermissions
 import com.sakurafubuki.yume.core.media.services.MediaService
@@ -746,7 +747,7 @@ private fun CloudVideoPane(
                             VideoThumbnailStore.durationMsMap[video.uriString] = video.duration
                         }
 
-                        android.util.Log.d(
+                        Logger.d(
                             "BUG2_MediaPicker",
                             "video uri=${video.uriString.take(80)} " +
                                 "duration=${video.duration}ms " +
@@ -754,7 +755,7 @@ private fun CloudVideoPane(
                                 "name=${video.nameWithExtension}",
                         )
                     }
-                    android.util.Log.d("BUG2_MediaPicker", "STORE: thumbnails=${VideoThumbnailStore.thumbnailUriMap.size} durations=${VideoThumbnailStore.durationMsMap.size}")
+                    Logger.d("BUG2_MediaPicker", "STORE: thumbnails=${VideoThumbnailStore.thumbnailUriMap.size} durations=${VideoThumbnailStore.durationMsMap.size}")
                     MediaView(
                         rootFolder = rootFolder,
                         preferences = displayPrefs,

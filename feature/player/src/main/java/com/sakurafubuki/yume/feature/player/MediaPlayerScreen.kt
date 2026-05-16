@@ -54,6 +54,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.sakurafubuki.yume.core.data.repository.MoovIndexCache
 import com.sakurafubuki.yume.core.model.ControlButtonsPosition
 import com.sakurafubuki.yume.core.model.PlayerPreferences
 import com.sakurafubuki.yume.core.model.WebDavServer
@@ -184,6 +185,9 @@ fun MediaPlayerScreen(
     )
 
     val videoInfoState = rememberVideoInfoState(player)
+
+    val mediaId = player.currentMediaItem?.mediaId ?: ""
+    val chapters = MoovIndexCache.getChapters(mediaId)
 
     DisposableEffect(player, webDavServersById().size) {
         val listener = object : Player.Listener {
@@ -380,6 +384,7 @@ fun MediaPlayerScreen(
                                     spriteSheetState = spriteSheetState,
                                     isSeeking = seekGestureState.isSeeking,
                                     seekPosition = seekGestureState.currentSeekPosition,
+                                    chapters = chapters,
                                     onSeek = seekGestureState::onSeek,
                                     onSeekEnd = seekGestureState::onSeekEnd,
                                     onRotateClick = rotationState::rotate,

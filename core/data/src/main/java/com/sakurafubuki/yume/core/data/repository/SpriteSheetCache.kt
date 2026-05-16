@@ -2,7 +2,6 @@ package com.sakurafubuki.yume.core.data.repository
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.util.Log
 import com.sakurafubuki.yume.core.common.Logger
 import java.io.File
 import java.util.LinkedHashMap
@@ -113,7 +112,7 @@ object SpriteSheetCache {
             try {
                 evictDisk(dir)
             } catch (e: Exception) {
-                Log.w(TAG, "Disk eviction failed", e)
+                Logger.w(TAG, "Disk eviction failed", e)
             }
         }.start()
     }

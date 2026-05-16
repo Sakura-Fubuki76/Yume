@@ -19,6 +19,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import com.sakurafubuki.yume.core.common.Logger
+import com.sakurafubuki.yume.core.model.ChapterEntry
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -89,6 +91,109 @@ class Mp4KeyframeExtractor(
             ?: return@withContext null.also { log { "DURATION FAIL: could not parse mvhd" } }
     }
 
+    fun extractChapters(moovBytes: ByteArray): List<ChapterEntry> = parseChpl(moovBytes)
+
+    private fun parseChpl(data: ByteArray): List<ChapterEntry> {
+        log { "CHPL: searching moov in ${data.size}B..." }
+        val moovResult = findAtom(data, 0, data.size, "moov")
+        if (moovResult == null) {
+            log { "CHPL: moov not found" }
+            return emptyList()
+        }
+        val (moovOff, moovSize) = moovResult
+        val moovEnd = minOf(moovOff + moovSize, data.size)
+        log { "CHPL: moov at off=$moovOff size=$moovSize" }
+
+        log { "CHPL: searching udta in moov[${moovOff + 8}..$moovEnd]..." }
+        val udtaResult = findAtom(data, moovOff + 8, moovEnd, "udta")
+        if (udtaResult == null) {
+            log { "CHPL: udta not found — no chapters in this file" }
+            return emptyList()
+        }
+        val (udtaOff, udtaSize) = udtaResult
+        val udtaEnd = minOf(udtaOff + udtaSize, moovEnd)
+        log { "CHPL: udta at off=$udtaOff size=$udtaSize" }
+
+        log { "CHPL: searching chpl in udta[${udtaOff + 8}..$udtaEnd]..." }
+        val chplResult = findAtom(data, udtaOff + 8, udtaEnd, "chpl")
+        if (chplResult == null) {
+            log { "CHPL: chpl not found — no Apple chapters in this file" }
+            return emptyList()
+        }
+        val (chplOff, chplSize) = chplResult
+        val chplEnd = minOf(chplOff + chplSize, data.size)
+        log { "CHPL: chpl at off=$chplOff size=$chplSize" }
+
+        if (chplOff + 17 > chplEnd) {
+            log { "CHPL: too small (chplEnd=${chplEnd})" }
+            return emptyList()
+        }
+
+        val version = data[chplOff + 8].toInt() and 0xFF
+        if (version != 1) {
+            log { "CHPL: unsupported version=$version" }
+            return emptyList()
+        }
+
+        var pos = chplOff + 12
+        val count = readInt32BE(data, pos)
+        pos += 4
+
+        val actualCount = if (count in 1..1000) {
+            log { "CHPL: 4-byte count=$count" }
+            count
+        } else {
+            pos = chplOff + 12
+            val c = (data[pos].toInt() and 0xFF)
+            pos++
+            log { "CHPL: 1-byte count=$c (4-byte was $count)" }
+            c
+        }
+
+        if (actualCount <= 0) {
+            log { "CHPL: zero count" }
+            return emptyList()
+        }
+
+        return buildList {
+            val entries = mutableListOf<Pair<Long, String>>()
+            for (i in 0 until actualCount) {
+                if (pos + 9 > chplEnd) {
+                    log { "CHPL: entry[$i] truncated at pos=$pos" }
+                    break
+                }
+                val timestamp100ns = readInt64BE(data, pos)
+                val startTimeMs = timestamp100ns / 10000L
+                pos += 8
+                val titleLen = data[pos].toInt() and 0xFF
+                pos += 1
+                if (titleLen <= 0 || pos + titleLen > chplEnd) {
+                    log { "CHPL: entry[$i] titleLen=$titleLen invalid" }
+                    break
+                }
+                val title = String(data, pos, titleLen, Charsets.UTF_8).trimEnd('\u0000')
+                pos += titleLen
+                log { "CHPL: entry[$i] time=${formatTime(startTimeMs)} title=$title" }
+                entries.add(startTimeMs to title)
+            }
+
+            for (i in entries.indices) {
+                val (start, title) = entries[i]
+                val end = if (i + 1 < entries.size) entries[i + 1].first else Long.MAX_VALUE
+                add(ChapterEntry(startTimeMs = start, endTimeMs = end, title = title))
+            }
+
+            log { "CHPL: SUCCESS parsed ${entries.size} chapters" }
+        }
+    }
+
+    private fun formatTime(ms: Long): String {
+        val totalSec = ms / 1000
+        val min = totalSec / 60
+        val sec = totalSec % 60
+        return "%d:%02d".format(min, sec)
+    }
+
     data class MoovInfo(
         val timescale: Int,
         val duration: Long,
@@ -115,7 +220,7 @@ class Mp4KeyframeExtractor(
         val height: Int? = null,
     )
 
-    internal suspend fun loadParsedMoov(url: String): ParsedMoov? {
+    suspend fun loadParsedMoov(url: String): ParsedMoov? {
         val cacheKey = moovCacheKey(url)
         getCachedMoov(cacheKey)?.let {
             log { "MOOV cache hit: bytes=${it.moovByteSize} duration=${it.durationMs ?: 0}" }
@@ -130,10 +235,10 @@ class Mp4KeyframeExtractor(
             }
 
             val contentLength = httpHead(url)
-            android.util.Log.d("BUG4_HttpExtractor", "loadParsedMoov: HEAD contentLength=$contentLength url=${cacheKey.take(80)}")
+            Logger.d("BUG4_HttpExtractor", "loadParsedMoov: HEAD contentLength=$contentLength url=${cacheKey.take(80)}")
             log { "HEAD contentLength=$contentLength url=$cacheKey" }
             if (contentLength == null || contentLength < 1024) {
-                android.util.Log.d("BUG4_HttpExtractor", "loadParsedMoov FAIL: no Content-Length for ${cacheKey.take(80)}")
+                Logger.d("BUG4_HttpExtractor", "loadParsedMoov FAIL: no Content-Length for ${cacheKey.take(80)}")
                 log { "FAIL: HEAD returned no valid Content-Length" }
                 return@withLock null
             }
@@ -151,12 +256,15 @@ class Mp4KeyframeExtractor(
             putCachedMoov(cacheKey, parsed)
 
             if (moovInfo != null && moovInfo.keyframes.isNotEmpty()) {
+                val chapters = extractChapters(moovData.bytes)
+                log { "MOOV extracted ${chapters.size} chapters for caching" }
                 MoovIndexCache.put(
                     url,
                     MoovIndexCache.Entry(
                         keyframes = moovInfo.keyframes,
                         contentLength = contentLength,
                         durationMs = durationMs,
+                        chapters = chapters,
                     ),
                 )
             }
@@ -189,12 +297,15 @@ class Mp4KeyframeExtractor(
         )
         putCachedMoov(filePath, parsed)
         if (moovInfo != null && moovInfo.keyframes.isNotEmpty()) {
+            val chapters = extractChapters(moovData.bytes)
+            log { "MOOV file extracted ${chapters.size} chapters for caching" }
             MoovIndexCache.put(
                 filePath,
                 MoovIndexCache.Entry(
                     keyframes = moovInfo.keyframes,
                     contentLength = fileSize,
                     durationMs = durationMs,
+                    chapters = chapters,
                 ),
             )
         }
@@ -267,14 +378,14 @@ class Mp4KeyframeExtractor(
                 .head()
                 .header("Accept", "*/*")
                 .build()
-            android.util.Log.d("BUG4_HttpExtractor", "httpHead: url=${url.take(100)}")
+            Logger.d("BUG4_HttpExtractor", "httpHead: url=${url.take(100)}")
             okHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    android.util.Log.d("BUG4_HttpExtractor", "httpHead FAIL: code=${response.code} url=${url.take(80)}")
+                    Logger.d("BUG4_HttpExtractor", "httpHead FAIL: code=${response.code} url=${url.take(80)}")
                     return null
                 }
                 val contentLength = response.header("Content-Length")?.toLongOrNull()
-                android.util.Log.d("BUG4_HttpExtractor", "httpHead OK: contentLength=$contentLength url=${url.take(80)}")
+                Logger.d("BUG4_HttpExtractor", "httpHead OK: contentLength=$contentLength url=${url.take(80)}")
                 if (contentLength != null && contentLength > 0) {
                     ContentLengthCache.put(url, contentLength)
                 }
@@ -282,7 +393,7 @@ class Mp4KeyframeExtractor(
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            android.util.Log.d("BUG4_HttpExtractor", "httpHead EXCEPTION: ${e.message} url=${url.take(80)}")
+            Logger.d("BUG4_HttpExtractor", "httpHead EXCEPTION: ${e.message} url=${url.take(80)}")
             log { "HEAD error: ${e.message}" }
             null
         }
@@ -296,11 +407,11 @@ class Mp4KeyframeExtractor(
                 .header("Range", "bytes=$start-$end")
                 .header("Accept", "*/*")
                 .build()
-            android.util.Log.d("BUG4_HttpExtractor", "httpRange: url=${url.take(100)} range=$start-$end")
+            Logger.d("BUG4_HttpExtractor", "httpRange: url=${url.take(100)} range=$start-$end")
             okHttpClient.newCall(request).execute().use { response ->
                 val body = response.body ?: return null
                 if (!response.isSuccessful || !response.isSafeRangeResponse(size)) {
-                    android.util.Log.d("BUG4_HttpExtractor", "httpRange FAIL: code=${response.code} url=${url.take(80)}")
+                    Logger.d("BUG4_HttpExtractor", "httpRange FAIL: code=${response.code} url=${url.take(80)}")
                     log { "Range $start-$end failed: ${response.code}" }
                     return null
                 }
@@ -308,7 +419,7 @@ class Mp4KeyframeExtractor(
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            android.util.Log.d("BUG4_HttpExtractor", "httpRange EXCEPTION: ${e.message} url=${url.take(80)}")
+            Logger.d("BUG4_HttpExtractor", "httpRange EXCEPTION: ${e.message} url=${url.take(80)}")
             log { "Range error: ${e.message}" }
             null
         }
@@ -316,7 +427,7 @@ class Mp4KeyframeExtractor(
 
     private fun downloadMoovAtom(url: String, fileSize: Long): MoovData? {
         val probeSizes = listOf(64 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024, 8 * 1024 * 1024)
-        android.util.Log.d("BUG4_HttpExtractor", "downloadMoovAtom: url=${url.take(100)} fileSize=$fileSize")
+        Logger.d("BUG4_HttpExtractor", "downloadMoovAtom: url=${url.take(100)} fileSize=$fileSize")
         for (probeSize in probeSizes) {
             val start = maxOf(0L, fileSize - probeSize)
             val range = when {
@@ -332,13 +443,13 @@ class Mp4KeyframeExtractor(
                 val actualOffset = start + moovOffsetInData
 
                 if (moovOffsetInData + moovSize <= data.size) {
-                    android.util.Log.d("BUG4_HttpExtractor", "downloadMoovAtom: MOOV found at offset=$actualOffset size=$moovSize probeSize=$probeSize")
+                    Logger.d("BUG4_HttpExtractor", "downloadMoovAtom: MOOV found at offset=$actualOffset size=$moovSize probeSize=$probeSize")
                     log { "MOOV found: offset=$actualOffset size=$moovSize" }
                     val moovBytes = data.copyOfRange(moovOffsetInData, moovOffsetInData + moovSize)
                     return MoovData(bytes = moovBytes, fileOffset = actualOffset)
                 }
 
-                android.util.Log.d("BUG4_HttpExtractor", "downloadMoovAtom: MOOV truncated, re-fetching size=$moovSize")
+                Logger.d("BUG4_HttpExtractor", "downloadMoovAtom: MOOV truncated, re-fetching size=$moovSize")
                 log { "MOOV found but truncated (size=$moovSize > available=${data.size - moovOffsetInData}), re-fetching" }
                 val fullMoov = httpRange(url, actualOffset, moovSize)
                 if (fullMoov != null && fullMoov.size == moovSize) {
@@ -346,7 +457,7 @@ class Mp4KeyframeExtractor(
                 }
             }
         }
-        android.util.Log.w("BUG4_HttpExtractor", "downloadMoovAtom FAIL: no moov found after ${probeSizes.size} probes url=${url.take(100)}")
+        Logger.w("BUG4_HttpExtractor", "downloadMoovAtom FAIL: no moov found after ${probeSizes.size} probes url=${url.take(100)}")
         return null
     }
 
@@ -361,24 +472,24 @@ class Mp4KeyframeExtractor(
                 ?.let { end -> range.substringBefore('-').toLongOrNull()?.let { start -> end - start + 1 } }
                 ?.coerceAtMost(Int.MAX_VALUE.toLong())
                 ?.toInt()
-            android.util.Log.d("BUG4_HttpExtractor", "httpHeadWithRange: url=${url.take(100)} range=$range")
+            Logger.d("BUG4_HttpExtractor", "httpHeadWithRange: url=${url.take(100)} range=$range")
             okHttpClient.newCall(request).execute().use { response ->
                 val body = response.body
                 val code = response.code
-                android.util.Log.d("BUG4_HttpExtractor", "httpHeadWithRange response: code=$code bodySize=${body?.contentLength()} url=${url.take(80)}")
+                Logger.d("BUG4_HttpExtractor", "httpHeadWithRange response: code=$code bodySize=${body?.contentLength()} url=${url.take(80)}")
                 if (body == null) {
-                    android.util.Log.d("BUG4_HttpExtractor", "httpHeadWithRange FAIL: null body")
+                    Logger.d("BUG4_HttpExtractor", "httpHeadWithRange FAIL: null body")
                     return null
                 }
                 if (!response.isSuccessful || !response.isSafeRangeResponse(requestedSize)) {
-                    android.util.Log.d("BUG4_HttpExtractor", "httpHeadWithRange FAIL: not successful or not safe range")
+                    Logger.d("BUG4_HttpExtractor", "httpHeadWithRange FAIL: not successful or not safe range")
                     return null
                 }
                 body.bytes()
             }
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            android.util.Log.d("BUG4_HttpExtractor", "httpHeadWithRange EXCEPTION: ${e.message} url=${url.take(80)}")
+            Logger.d("BUG4_HttpExtractor", "httpHeadWithRange EXCEPTION: ${e.message} url=${url.take(80)}")
             log { "Tail request error: ${e.message}" }
             null
         }
@@ -1369,7 +1480,9 @@ class Mp4KeyframeExtractor(
         (data[offset + 7].toLong() and 0xFF)
 
     @Suppress("NOTHING_TO_INLINE")
-    private inline fun log(msg: () -> String) { }
+    private inline fun log(msg: () -> String) {
+        Logger.d("BUG4_Chapters", msg())
+    }
 
     companion object {
         private const val MAX_MOOV_CACHE_ENTRIES = 32

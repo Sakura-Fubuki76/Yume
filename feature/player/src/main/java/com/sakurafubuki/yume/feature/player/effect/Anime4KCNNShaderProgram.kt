@@ -2,7 +2,7 @@ package com.sakurafubuki.yume.feature.player.effect
 
 import android.content.Context
 import android.opengl.GLES30
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import androidx.media3.common.util.GlProgram
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
@@ -34,16 +34,16 @@ class Anime4KCNNShaderProgram(
         passThroughProgram = runCatching {
             GlProgram(VERTEX_SHADER, PASS_THROUGH_FRAG).also(::setupVertexBuffers)
         }.onFailure {
-            Log.w(TAG, "CNN pass-through shader compilation failed", it)
+            Logger.w(TAG, "CNN pass-through shader compilation failed", it)
         }.getOrNull()
 
         try {
             val source = readAsset(assetPath)
             val parsed = parseCnnSource(source)
             layers = parsed.map { compileLayer(it) }
-            Log.i(TAG, "CNN compiled ${layers.size} layers from $assetPath")
+            Logger.i(TAG, "CNN compiled ${layers.size} layers from $assetPath")
         } catch (e: Exception) {
-            Log.w(TAG, "CNN init failed for $assetPath, using pass-through", e)
+            Logger.w(TAG, "CNN init failed for $assetPath, using pass-through", e)
             shaderInitFailed = true
             layers = emptyList()
         }
@@ -112,7 +112,7 @@ class Anime4KCNNShaderProgram(
                 }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "CNN drawFrame failed, disabling", e)
+            Logger.w(TAG, "CNN drawFrame failed, disabling", e)
             shaderInitFailed = true
             drawPassThrough(inputTexId, outputFbo)
         }
@@ -143,14 +143,14 @@ class Anime4KCNNShaderProgram(
             intermediates[name] = result
             return result.fbo
         }
-        Log.w(TAG, "RGBA16F FBO failed, falling back to RGBA8 for $name")
+        Logger.w(TAG, "RGBA16F FBO failed, falling back to RGBA8 for $name")
 
         val fallbackResult = tryCreateFboTex(w, h, useHalfFloat = false)
         if (fallbackResult != null) {
             intermediates[name] = fallbackResult
             return fallbackResult.fbo
         }
-        Log.e(TAG, "Failed to create intermediate FBO for $name")
+        Logger.e(TAG, "Failed to create intermediate FBO for $name")
         shaderInitFailed = true
         return 0
     }
@@ -370,7 +370,7 @@ class Anime4KCNNShaderProgram(
     private fun checkGlError(tag: String) {
         val err = GLES30.glGetError()
         if (err != GLES30.GL_NO_ERROR) {
-            Log.w(TAG, "$tag GL error: 0x${Integer.toHexString(err)}")
+            Logger.w(TAG, "$tag GL error: 0x${Integer.toHexString(err)}")
         }
     }
 

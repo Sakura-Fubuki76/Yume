@@ -1,5 +1,6 @@
 package com.sakurafubuki.yume.feature.player.service
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.ContentResolver
 import android.content.Intent
@@ -54,7 +55,9 @@ import com.sakurafubuki.yume.core.common.extensions.subtitleCacheDir
 import com.sakurafubuki.yume.core.data.openlist.OpenListApi
 import com.sakurafubuki.yume.core.data.repository.CloudVideoMetadataRepository
 import com.sakurafubuki.yume.core.data.repository.MediaRepository
+import com.sakurafubuki.yume.core.data.repository.MkvKeyframeExtractor
 import com.sakurafubuki.yume.core.data.repository.MoovIndexCache
+import com.sakurafubuki.yume.core.data.repository.Mp4KeyframeExtractor
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
 import com.sakurafubuki.yume.core.model.Anime4KRestoreMode
@@ -86,7 +89,7 @@ import com.sakurafubuki.yume.feature.player.extensions.subtitleTrackIndex
 import com.sakurafubuki.yume.feature.player.extensions.switchTrack
 import com.sakurafubuki.yume.feature.player.extensions.uriToSubtitleConfiguration
 import com.sakurafubuki.yume.feature.player.extensions.videoZoom
-import com.sakurafubuki.yume.feature.player.network.CdnDns
+
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
@@ -154,6 +157,9 @@ class PlayerService : MediaSessionService() {
 
     private lateinit var okHttpClient: OkHttpClient
 
+    private lateinit var mp4Extractor: Mp4KeyframeExtractor
+    private lateinit var mkvExtractor: MkvKeyframeExtractor
+
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var currentVolumeGain: Int = 0
 
@@ -172,6 +178,12 @@ class PlayerService : MediaSessionService() {
 
                 metadata.positionMs?.takeIf { playerPreferences.resume == Resume.YES }?.let {
                     mediaSession?.player?.seekTo(it)
+                }
+            }
+
+            mediaItem?.let { item ->
+                serviceScope.launch(Dispatchers.IO) {
+                    resolveChaptersForMediaItem(item)
                 }
             }
         }
@@ -686,11 +698,6 @@ class PlayerService : MediaSessionService() {
             .readTimeout(60, TimeUnit.SECONDS)
             .dispatcher(okhttp3.Dispatcher().apply { maxRequestsPerHost = 30 })
             .connectionPool(okhttp3.ConnectionPool(25, 30, TimeUnit.MINUTES))
-            .dns(
-                CdnDns {
-                    preferencesRepository.applicationPreferences.value.cdnSelections
-                },
-            )
             .addInterceptor { chain ->
                 val request = chain.request()
 
@@ -716,7 +723,7 @@ class PlayerService : MediaSessionService() {
                 var finalRequest = builder.build()
 
                 if (Utils.isBaiduNetdiskUrl(finalRequest.url.toString())) {
-                    android.util.Log.d("BUG4_PlayerService", "Baidu detected for streaming: ${finalRequest.url.toString().take(100)}")
+                    Logger.d("BUG4_PlayerService", "Baidu detected for streaming: ${finalRequest.url.toString().take(100)}")
                     finalRequest = finalRequest.newBuilder()
                         .header("User-Agent", "pan.baidu.com")
                         .build()
@@ -750,6 +757,9 @@ class PlayerService : MediaSessionService() {
             .followRedirects(true)
             .followSslRedirects(true)
             .build()
+
+        mp4Extractor = Mp4KeyframeExtractor(okHttpClient)
+        mkvExtractor = MkvKeyframeExtractor(okHttpClient)
 
         serviceScope.launch(Dispatchers.IO) {
             webDavServerRepository.observeServers().collect { servers ->
@@ -856,6 +866,7 @@ class PlayerService : MediaSessionService() {
         serviceScope.cancel()
     }
 
+    @SuppressLint("UseKtx")
     private suspend fun updatedMediaItemsWithMetadata(
         mediaItems: List<MediaItem>,
     ): List<MediaItem> = supervisorScope {
@@ -904,7 +915,7 @@ class PlayerService : MediaSessionService() {
                     when {
                         subUri.startsWith("http://") || subUri.startsWith("https://") -> true
                         else -> try {
-                            val u = android.net.Uri.parse(subUri)
+                            val u = subUri.toUri()
                             contentResolver.openInputStream(u)?.use { true } ?: false
                         } catch (_: Exception) {
                             false
@@ -922,7 +933,7 @@ class PlayerService : MediaSessionService() {
                     playerPreferences.rememberSelections
 
                 val allSubUris = localSubs + externalSubs
-                val bestCandidateUri: android.net.Uri? = if (shouldAutoSelect) {
+                val bestCandidateUri: Uri? = if (shouldAutoSelect) {
                     findBestSubtitleCandidate(allSubUris)
                 } else {
                     null
@@ -1021,19 +1032,42 @@ class PlayerService : MediaSessionService() {
         appendPath(resources.getResourceEntryName(defaultArtwork))
     }.build()
 
+    private suspend fun resolveChaptersForMediaItem(item: MediaItem) {
+        try {
+            val uri = item.localConfiguration?.uri?.toString() ?: item.mediaId
+            if (MoovIndexCache.getChapters(uri).isNotEmpty()) return
+
+            val path = uri.substringBefore('?').lowercase()
+            Logger.d("BUG4_Chapters", "resolveChaptersForMediaItem: uri=${uri.take(80)}")
+            when {
+                path.endsWith(".mkv") || path.endsWith(".webm") -> {
+                    mkvExtractor.loadParsedMkv(uri)
+                    Logger.d("BUG4_Chapters", "MKV loadParsedMkv completed")
+                }
+                path.endsWith(".mp4") || path.endsWith(".mov") || path.endsWith(".m4v") -> {
+                    mp4Extractor.loadParsedMoov(uri)
+                    Logger.d("BUG4_Chapters", "MP4 loadParsedMoov completed")
+                }
+            }
+        } catch (e: Exception) {
+            Logger.e("BUG4_Chapters", "resolveChaptersForMediaItem failed: ${e.message}")
+        }
+    }
+
     private suspend fun resolveCloudVideoDuration(mediaId: String): Long? {
         MoovIndexCache.get(mediaId)?.durationMs?.takeIf { it > 0L }?.let { return it }
         return resolveCloudVideoMetadata(mediaId)?.durationMs?.takeIf { it > 0L }
     }
 
-    private suspend fun resolveCloudVideoThumbnail(mediaId: String): android.net.Uri? = resolveCloudVideoMetadata(mediaId)?.thumbnailPath?.let { path ->
+    @SuppressLint("UseKtx")
+    private suspend fun resolveCloudVideoThumbnail(mediaId: String): Uri? = resolveCloudVideoMetadata(mediaId)?.thumbnailPath?.let { path ->
         runCatching {
             if (path.startsWith("http://", ignoreCase = true) ||
                 path.startsWith("https://", ignoreCase = true)
             ) {
-                android.net.Uri.parse(path)
+                path.toUri()
             } else {
-                android.net.Uri.fromFile(java.io.File(path))
+                Uri.fromFile(File(path))
             }
         }.getOrNull()
     }
@@ -1106,8 +1140,8 @@ class PlayerService : MediaSessionService() {
 
     private suspend fun probeRemoteSubtitles(
         videoUrl: String,
-        excludeSubs: List<android.net.Uri>,
-    ): List<android.net.Uri> = withContext(Dispatchers.IO) {
+        excludeSubs: List<Uri>,
+    ): List<Uri> = withContext(Dispatchers.IO) {
         Logger.d("PlayerService", "probeRemoteSubtitles: videoUrl=$videoUrl")
         val excludeUrls = excludeSubs.mapNotNull { it.toString().takeIf { u -> u.startsWith("http") } }.toSet()
         val url = runCatching { videoUrl.toHttpUrl() }.getOrNull() ?: return@withContext emptyList()
@@ -1138,24 +1172,25 @@ class PlayerService : MediaSessionService() {
             "/"
         }
 
-        val results = mutableListOf<android.net.Uri>()
+        val results = mutableListOf<Uri>()
         for (ext in candidateExtensions) {
-            doProbeHead(url, parentPath + baseName + "." + ext, excludeUrls, results)
+            doProbeHead(url, "$parentPath$baseName.$ext", excludeUrls, results)
         }
         for (lang in langSuffixes) {
             for (ext in listOf("ass", "ssa", "srt")) {
-                doProbeHead(url, parentPath + baseName + ".$lang.$ext", excludeUrls, results)
+                doProbeHead(url, "$parentPath$baseName.$lang.$ext", excludeUrls, results)
             }
         }
         Logger.d("PlayerService", "probeRemoteSubtitles: found ${results.size} remote subtitles: $results")
         results
     }
 
+    @SuppressLint("UseKtx")
     private suspend fun probeSubtitlesViaApi(
         url: HttpUrl,
         baseName: String,
         excludeUrls: Set<String>,
-    ): List<android.net.Uri> {
+    ): List<Uri> {
         val server = findMatchingWebDavServer(url) ?: run {
             Logger.d("PlayerService", "probeSubtitlesViaApi: no matching server for $url")
             return emptyList()
@@ -1194,15 +1229,16 @@ class PlayerService : MediaSessionService() {
                 .joinToString("/") { Uri.encode(Uri.decode(it)) }
             val rawPath = if (apiDirPath == "/") "/d/$encodedName" else "/d/$encodedDirPath/$encodedName"
             val signSuffix = if (item.sign.isNotBlank()) "?sign=${item.sign}" else ""
-            android.net.Uri.parse("$rootBaseUrl$rawPath$signSuffix").takeIf { it.toString() !in excludeUrls }
+            "$rootBaseUrl$rawPath$signSuffix".toUri().takeIf { it.toString() !in excludeUrls }
         }
     }
 
+    @SuppressLint("UseKtx")
     private fun doProbeHead(
         baseUrl: HttpUrl,
         path: String,
         excludeUrls: Set<String>,
-        results: MutableList<android.net.Uri>,
+        results: MutableList<Uri>,
     ) {
         val candidateWithQuery = baseUrl.newBuilder().encodedPath(path).build()
         val candidateWithoutQuery = baseUrl.newBuilder().encodedPath(path).encodedQuery(null).build()
@@ -1215,7 +1251,7 @@ class PlayerService : MediaSessionService() {
                 val response = okHttpClient.newCall(request).execute()
                 Logger.d("PlayerService", "probeRemoteSubtitles HEAD: $candStr → ${response.code}")
                 if (response.isSuccessful) {
-                    results.add(android.net.Uri.parse(candStr))
+                    results.add(candStr.toUri())
                     response.close()
                     return
                 }
@@ -1239,13 +1275,14 @@ class PlayerService : MediaSessionService() {
         )
     }
 
+    @SuppressLint("UseKtx")
     private fun findMatchingWebDavServer(url: HttpUrl): WebDavServer? {
         val normalizedPath = normalizePath(url.encodedPath)
 
         val pathMatch = webDavServersById.values
             .asSequence()
             .filter { server ->
-                val serverUri = Uri.parse(server.url)
+                val serverUri = server.url.toUri()
                 val serverScheme = serverUri.scheme.orEmpty()
                 val serverHost = serverUri.host.orEmpty()
                 if (!serverScheme.equals(url.scheme, ignoreCase = true)) return@filter false

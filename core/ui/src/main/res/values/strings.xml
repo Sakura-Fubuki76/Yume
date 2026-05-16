@@ -421,13 +421,4 @@
     <string name="address">Address</string>
     <string name="username">Username</string>
     <string name="password">Password</string>
-    <string name="cdn_optimization">CDN Optimization</string>
-    <string name="cdn_hostname_hint">Hostname (e.g. d.pcs.baidu.com)</string>
-    <string name="cdn_scan">Speed Test</string>
-    <string name="cdn_scanning">Testing…</string>
-    <string name="cdn_scan_error">Failed: %1$s</string>
-    <string name="cdn_latency_ms">%1$d ms</string>
-    <string name="cdn_no_results">No reachable IPs found</string>
-    <string name="cdn_saved_selections">Saved CDN selections</string>
-    <string name="cdn_clear_selection">Clear</string>
 </resources>

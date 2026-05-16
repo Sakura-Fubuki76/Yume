@@ -1,7 +1,7 @@
 package com.sakurafubuki.yume.feature.videopicker.screens.mediapicker
 
 import android.net.Uri
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.data.cache.CloudDirectoryItemCache
 import com.sakurafubuki.yume.core.data.openlist.FsSearchItem
 import com.sakurafubuki.yume.core.data.openlist.OpenListApi
@@ -50,7 +50,7 @@ class CloudFolderSummaryScanner @Inject constructor(
                             }
                         }.onFailure { throwable ->
                             if (throwable !is CancellationException) {
-                                Log.w(CLOUD_SUMMARY_LOG_TAG, "refresh root summary failed server=${server.id}", throwable)
+                                Logger.w(CLOUD_SUMMARY_LOG_TAG, "refresh root summary failed server=${server.id}", throwable)
                             }
                         }
                     }
@@ -90,7 +90,7 @@ class CloudFolderSummaryScanner @Inject constructor(
                             saveScannedFolderMetadata(server, childPath, childItems)
                         }.onFailure { throwable ->
                             if (throwable !is CancellationException) {
-                                Log.w(
+                                Logger.w(
                                     CLOUD_SUMMARY_LOG_TAG,
                                     "refresh child summary failed server=${server.id} path=$childPath",
                                     throwable,
@@ -115,7 +115,7 @@ class CloudFolderSummaryScanner @Inject constructor(
         val directFolderItems = parentItems.cloudDirectoryItems()
         if (directFolderItems.isEmpty()) return false
 
-        Log.d(
+        Logger.d(
             CLOUD_SEARCH_LOG_TAG,
             "search summary start server=${server.id} path=$parentPath directFolders=${directFolderItems.size}",
         )
@@ -169,7 +169,7 @@ class CloudFolderSummaryScanner @Inject constructor(
             )
         }
 
-        Log.d(
+        Logger.d(
             CLOUD_SEARCH_LOG_TAG,
             "search summary applied server=${server.id} path=$parentPath files=${indexedFiles.size} videos=${videoFiles.size} visibleChildFolders=${displayableChildNames.size} zeroChildren=${directFoldersByName.size - displayableChildNames.size}",
         )
@@ -193,16 +193,16 @@ class CloudFolderSummaryScanner @Inject constructor(
                 page = page,
                 perPage = SEARCH_INDEX_PAGE_SIZE,
             ).getOrElse { throwable ->
-                Log.d(CLOUD_SEARCH_LOG_TAG, "search unavailable server=${server.id} path=$parentPath: ${throwable.message}")
+                Logger.d(CLOUD_SEARCH_LOG_TAG, "search unavailable server=${server.id} path=$parentPath: ${throwable.message}")
                 return null
             }
             val content = data.content.orEmpty()
             total = data.total
             if (total > SEARCH_INDEX_MAX_RESULTS) {
-                Log.w(CLOUD_SEARCH_LOG_TAG, "search result too large server=${server.id} path=$parentPath total=$total")
+                Logger.w(CLOUD_SEARCH_LOG_TAG, "search result too large server=${server.id} path=$parentPath total=$total")
                 return null
             }
-            Log.d(
+            Logger.d(
                 CLOUD_SEARCH_LOG_TAG,
                 "search page server=${server.id} path=$parentPath page=$page total=$total returned=${content.size}",
             )
@@ -250,7 +250,7 @@ class CloudFolderSummaryScanner @Inject constructor(
             )
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            Log.w(CLOUD_SUMMARY_LOG_TAG, "OpenList API failed server=${server.id}, falling back to WebDAV: ${e.message}")
+            Logger.w(CLOUD_SUMMARY_LOG_TAG, "OpenList API failed server=${server.id}, falling back to WebDAV: ${e.message}")
             webDavRepository.listDirectory(server, path)
         }
     }

@@ -32,6 +32,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.common.VideoThumbnailStore
 import com.sakurafubuki.yume.core.common.extensions.getMediaContentUri
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
@@ -219,20 +220,20 @@ class PlayerActivity : ComponentActivity() {
 
         val videos = viewModel.getPlaylistFromUri(mediaContentUri ?: uri)
         val allDurations = videos.associate { it.uriString to it.duration } + durationMap
-        android.util.Log.d(
+        Logger.d(
             "BUG2_Player",
             "playVideo: uri=$uri mediaContentUri=$mediaContentUri " +
                 "videos.size=${videos.size} durationMap.size=${durationMap.size} " +
                 "thumbnailMap.size=${thumbnailMap.size} allDurations.size=${allDurations.size}",
         )
         videos.forEachIndexed { i, v ->
-            android.util.Log.d("BUG2_Player", "  video[$i]: uri=${v.uriString.take(80)} duration=${v.duration} name=${v.nameWithExtension}")
+            Logger.d("BUG2_Player", "  video[$i]: uri=${v.uriString.take(80)} duration=${v.duration} name=${v.nameWithExtension}")
         }
         durationMap.forEach { (k, v) ->
-            android.util.Log.d("BUG2_Player", "  durationMap: uri=${k.take(80)} -> ${v}ms")
+            Logger.d("BUG2_Player", "  durationMap: uri=${k.take(80)} -> ${v}ms")
         }
         thumbnailMap.forEach { (k, v) ->
-            android.util.Log.d("BUG2_Player", "  thumbnailMap: uri=${k.take(80)} -> ${v.take(80)}")
+            Logger.d("BUG2_Player", "  thumbnailMap: uri=${k.take(80)} -> ${v.take(80)}")
         }
         val playlist = playerApi.getPlaylist().takeIf { it.isNotEmpty() }
             ?: mediaContentUri?.let { mediaUri ->
@@ -256,7 +257,7 @@ class PlayerActivity : ComponentActivity() {
                 setMediaId(uri)
                 val thumbUri = thumbnailMap[uri]
                 val durationMs = allDurations[uri]?.takeIf { it > 0L }
-                android.util.Log.d(
+                Logger.d(
                     "BUG2_Player",
                     "  mediaItem[$index]: uri=${uri.take(80)} " +
                         "thumbUri=${thumbUri?.take(80) ?: "NULL"} durationMs=$durationMs",

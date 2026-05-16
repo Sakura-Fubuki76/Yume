@@ -51,6 +51,7 @@ import coil3.compose.AsyncImage
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.common.Utils
 import com.sakurafubuki.yume.core.common.VideoThumbnailStore
 import com.sakurafubuki.yume.core.ui.R
@@ -238,7 +239,7 @@ private fun ThumbnailView(
             effectiveArtworkUri != null -> effectiveArtworkUri.toString()
             else -> mediaItem.mediaId
         }
-        android.util.Log.d(
+        Logger.d(
             "BUG2_PlaylistView",
             "item: mediaId=${mediaItem.mediaId.take(80)} " +
                 "artworkUri=${mediaItem.mediaMetadata.artworkUri} " +

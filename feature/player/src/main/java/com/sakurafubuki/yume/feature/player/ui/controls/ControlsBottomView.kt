@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -56,6 +57,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import com.sakurafubuki.yume.core.common.Logger
+import com.sakurafubuki.yume.core.model.ChapterEntry
 import com.sakurafubuki.yume.core.model.VideoContentScale
 import com.sakurafubuki.yume.core.ui.R
 import com.sakurafubuki.yume.core.ui.extensions.copy
@@ -84,6 +87,7 @@ fun ControlsBottomView(
     spriteSheetState: SpriteSheetState? = null,
     isSeeking: Boolean = false,
     seekPosition: Long = 0L,
+    chapters: List<ChapterEntry> = emptyList(),
     onVideoContentScaleClick: () -> Unit,
     onVideoContentScaleLongClick: () -> Unit,
     onLockControlsClick: () -> Unit,
@@ -173,6 +177,7 @@ fun ControlsBottomView(
             PlayerSeekbar(
                 position = mediaPresentationState.position.toFloat(),
                 duration = mediaPresentationState.duration.toFloat(),
+                chapters = chapters,
                 onSeek = { onSeek(it.toLong()) },
                 onSeekFinished = { onSeekEnd() },
             )
@@ -237,6 +242,7 @@ private fun PlayerSeekbar(
     modifier: Modifier = Modifier,
     position: Float,
     duration: Float,
+    chapters: List<ChapterEntry> = emptyList(),
     onSeek: (Float) -> Unit,
     onSeekFinished: () -> Unit,
 ) {
@@ -246,6 +252,7 @@ private fun PlayerSeekbar(
                 modifier = modifier.fillMaxWidth(),
                 value = position,
                 valueRange = 0f..duration,
+                chapters = chapters,
                 onValueChange = onSeek,
                 onValueChangeFinished = onSeekFinished,
             )
@@ -254,6 +261,7 @@ private fun PlayerSeekbar(
                 modifier = modifier.fillMaxWidth(),
                 value = position,
                 valueRange = 0f..duration,
+                chapters = chapters,
                 onValueChange = onSeek,
                 onValueChangeFinished = onSeekFinished,
             )
@@ -267,6 +275,7 @@ private fun MaterialYouSlider(
     modifier: Modifier = Modifier,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
+    chapters: List<ChapterEntry> = emptyList(),
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
 ) {
@@ -332,6 +341,26 @@ private fun MaterialYouSlider(
                         endCornerRadius = insideCornerRadius,
                     )
                 }
+
+                if (chapters.isNotEmpty()) {
+                    val tickColor = Color.White.copy(alpha = 0.5f)
+                    val tickWidth = 2.dp.toPx()
+                    var drawn = 0
+                    for (chapter in chapters) {
+                        val fraction = ((chapter.startTimeMs.toFloat() - min) / range).coerceIn(0f, 1f)
+                        if (fraction > 0f && fraction < 1f) {
+                            val tickX = size.width * fraction
+                            drawLine(
+                                color = tickColor,
+                                start = Offset(tickX, 0f),
+                                end = Offset(tickX, size.height),
+                                strokeWidth = tickWidth,
+                            )
+                            drawn++
+                        }
+                    }
+                    Logger.d("BUG4_Chapters", "MaterialYouSlider: drew $drawn/${chapters.size} chapter ticks")
+                }
             }
         },
         thumb = {
@@ -375,6 +404,7 @@ private fun SimpleSlider(
     modifier: Modifier = Modifier,
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
+    chapters: List<ChapterEntry> = emptyList(),
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
 ) {
@@ -397,7 +427,33 @@ private fun SimpleSlider(
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(MaterialTheme.shapes.extraSmall)
-                    .background(Color.White.copy(0.5f)),
+                    .background(Color.White.copy(0.5f))
+                    .then(
+                        if (chapters.isNotEmpty()) {
+                            Modifier.drawWithContent {
+                                drawContent()
+                                val range = valueRange.endInclusive - valueRange.start
+                                if (range > 0f) {
+                                    val tickColor = Color.White.copy(alpha = 0.5f)
+                                    val tickWidth = 2.dp.toPx()
+                                    for (chapter in chapters) {
+                                        val fraction = ((chapter.startTimeMs.toFloat() - valueRange.start) / range).coerceIn(0f, 1f)
+                                        if (fraction > 0f && fraction < 1f) {
+                                            val tickX = size.width * fraction
+                                            drawLine(
+                                                color = tickColor,
+                                                start = Offset(tickX, 0f),
+                                                end = Offset(tickX, size.height),
+                                                strokeWidth = tickWidth,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Modifier
+                        }
+                    ),
             ) {
                 if (valueRange.endInclusive > 0f) {
                     Box(

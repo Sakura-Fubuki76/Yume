@@ -6,13 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.sakurafubuki.yume.core.cache.ImageCacheManager
 import com.sakurafubuki.yume.core.common.Dispatcher
 import com.sakurafubuki.yume.core.common.NextDispatchers
-import com.sakurafubuki.yume.core.data.network.CdnResolver
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
 import com.sakurafubuki.yume.core.data.webdav.WebDavRepository
 import com.sakurafubuki.yume.core.model.ApplicationPreferences
 import com.sakurafubuki.yume.core.model.CacheExpiry
-import com.sakurafubuki.yume.core.model.CdnNode
 import com.sakurafubuki.yume.core.model.WebDavServer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -39,7 +37,6 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
     private val webDavServerRepository: WebDavServerRepository,
     private val webDavRepository: WebDavRepository,
     @Dispatcher(NextDispatchers.IO) private val ioDispatcher: CoroutineDispatcher,
-    private val cdnResolver: CdnResolver = CdnResolver(),
 ) : ViewModel() {
 
     private val uiStateInternal = MutableStateFlow(MediaLibraryPreferencesUiState())
@@ -106,10 +103,6 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
             is MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadRange -> setImageBrowserPreloadRange(event.range)
             is MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadPageCount -> setImageBrowserPreloadPageCount(event.count)
             is MediaLibraryPreferencesUiEvent.UpdateImageCacheExpiry -> setImageCacheExpiry(event.expiry)
-            is MediaLibraryPreferencesUiEvent.UpdateCdnHostname -> updateCdnHostname(event.hostname)
-            is MediaLibraryPreferencesUiEvent.StartCdnScan -> startCdnScan(event.hostname)
-            is MediaLibraryPreferencesUiEvent.SelectCdnNode -> selectCdnNode(event.hostname, event.ip)
-            is MediaLibraryPreferencesUiEvent.ClearCdnSelection -> clearCdnSelection(event.hostname)
         }
     }
 
@@ -296,51 +289,6 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
         }
     }
 
-    private fun updateCdnHostname(hostname: String) {
-        uiStateInternal.update { it.copy(cdnHostname = hostname, cdnScanError = null) }
-    }
-
-    private fun startCdnScan(hostname: String) {
-        if (hostname.isBlank()) return
-        viewModelScope.launch {
-            uiStateInternal.update { it.copy(cdnIsScanning = true, cdnScanResults = emptyList(), cdnScanError = null) }
-            try {
-                val results = withContext(ioDispatcher) {
-                    cdnResolver.scan(hostname)
-                }
-                uiStateInternal.update {
-                    it.copy(cdnIsScanning = false, cdnScanResults = results)
-                }
-
-                preferencesRepository.updateApplicationPreferences { prefs ->
-                    prefs.copy(cdnLastScanResults = prefs.cdnLastScanResults + (hostname to results))
-                }
-            } catch (e: Exception) {
-                uiStateInternal.update {
-                    it.copy(cdnIsScanning = false, cdnScanError = e.message ?: "扫描失败")
-                }
-            }
-        }
-    }
-
-    private fun selectCdnNode(hostname: String, ip: String) {
-        viewModelScope.launch {
-            preferencesRepository.updateApplicationPreferences { prefs ->
-                prefs.copy(cdnSelections = prefs.cdnSelections + (hostname to ip))
-            }
-        }
-    }
-
-    private fun clearCdnSelection(hostname: String) {
-        viewModelScope.launch {
-            preferencesRepository.updateApplicationPreferences { prefs ->
-                prefs.copy(
-                    cdnSelections = prefs.cdnSelections - hostname,
-                    cdnLastScanResults = prefs.cdnLastScanResults - hostname,
-                )
-            }
-        }
-    }
 }
 
 private const val CACHE_REFRESH_DEBOUNCE_MS = 300L
@@ -361,11 +309,6 @@ data class MediaLibraryPreferencesUiState(
     val imageBrowserPreloadRange: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_PRELOAD_RANGE,
     val imageBrowserPreloadPageCount: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
     val lastConnectionTestResult: Boolean? = null,
-
-    val cdnHostname: String = "",
-    val cdnScanResults: List<CdnNode> = emptyList(),
-    val cdnIsScanning: Boolean = false,
-    val cdnScanError: String? = null,
 )
 
 sealed interface MediaLibraryPreferencesUiEvent {
@@ -385,8 +328,4 @@ sealed interface MediaLibraryPreferencesUiEvent {
     data class UpdateImageBrowserPreloadPageCount(val count: Int) : MediaLibraryPreferencesUiEvent
     data class UpdateImageCacheExpiry(val expiry: CacheExpiry) : MediaLibraryPreferencesUiEvent
     data object ClearImageCache : MediaLibraryPreferencesUiEvent
-    data class UpdateCdnHostname(val hostname: String) : MediaLibraryPreferencesUiEvent
-    data class StartCdnScan(val hostname: String) : MediaLibraryPreferencesUiEvent
-    data class SelectCdnNode(val hostname: String, val ip: String) : MediaLibraryPreferencesUiEvent
-    data class ClearCdnSelection(val hostname: String) : MediaLibraryPreferencesUiEvent
 }

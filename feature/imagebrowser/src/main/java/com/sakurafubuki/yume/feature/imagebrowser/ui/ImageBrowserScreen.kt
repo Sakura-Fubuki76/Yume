@@ -3,7 +3,7 @@ package com.sakurafubuki.yume.feature.imagebrowser.ui
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
@@ -1113,7 +1113,7 @@ private fun FolderCoverImage(
         },
         onError = { error ->
             coverLoadState = ImageCellLoadState.ERROR
-            Log.w(TAG, "ImageFolderCell onError: uri=${coverMedia.uriString.take(100)} error=${error.result.throwable.message}")
+            Logger.w(TAG, "ImageFolderCell onError: uri=${coverMedia.uriString.take(100)} error=${error.result.throwable.message}")
         },
     )
 }

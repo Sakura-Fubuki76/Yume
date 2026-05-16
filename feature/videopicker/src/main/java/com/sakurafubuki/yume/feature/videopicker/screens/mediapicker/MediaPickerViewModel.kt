@@ -1,7 +1,7 @@
 package com.sakurafubuki.yume.feature.videopicker.screens.mediapicker
 
 import android.net.Uri
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import androidx.compose.runtime.Stable
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
@@ -365,7 +365,7 @@ class MediaPickerViewModel @Inject constructor(
                     items to data.total
                 },
                 onFailure = { throwable ->
-                    Log.w(CLOUD_LOG_TAG, "OpenList API failed server=${server.id}, falling back to WebDAV: ${throwable.message}")
+                    Logger.w(CLOUD_LOG_TAG, "OpenList API failed server=${server.id}, falling back to WebDAV: ${throwable.message}")
                     throw throwable
                 },
             )
@@ -531,7 +531,7 @@ class MediaPickerViewModel @Inject constructor(
                 }
                 .onFailure { throwable ->
                     if (throwable is CancellationException || requestToken != cloudLoadRequestToken) return@onFailure
-                    Log.e(
+                    Logger.e(
                         CLOUD_LOG_TAG,
                         "loadCloudDirectory failed token=$requestToken server=${server.id} path=$path error=${throwable.message}",
                         throwable,
@@ -683,7 +683,7 @@ class MediaPickerViewModel @Inject constructor(
             else -> 0
         }
         if (existing != null && (existing.folderCount != folderCount || existing.folderCount != savedFolderCount)) {
-            Log.d(
+            Logger.d(
                 CLOUD_FLOW_LOG_TAG,
                 "saveFolderMetadataPreserving path=$normalizedPath preserve=$preserveExistingZeros " +
                     "incoming(media=$mediaCount folder=$folderCount video=$videoCount size=$totalSize) " +
@@ -920,7 +920,7 @@ class MediaPickerViewModel @Inject constructor(
 
         val resolvedFolderCount = cached?.folderCount ?: childFolders.size
         if (cached != null && cached.folderCount != childFolders.size) {
-            Log.d(
+            Logger.d(
                 CLOUD_FLOW_LOG_TAG,
                 "mapCachedCloudFolder path=$normalizedPath uses cached folderCount=${cached.folderCount} " +
                     "instead of cachedTreeChildFolders=${childFolders.size} media=${cached.videoCount} childItems=${childItems.size}",

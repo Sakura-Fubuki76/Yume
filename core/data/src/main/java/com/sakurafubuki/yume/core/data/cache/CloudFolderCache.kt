@@ -1,7 +1,7 @@
 package com.sakurafubuki.yume.core.data.cache
 
 import android.content.Context
-import android.util.Log
+import com.sakurafubuki.yume.core.common.Logger
 import com.jakewharton.disklrucache.DiskLruCache
 import com.sakurafubuki.yume.core.model.Folder
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,7 +33,7 @@ class CloudFolderCache @Inject constructor(
             }
         }
     } catch (e: Exception) {
-        Log.w(TAG, "Failed to read cloud folder cache: ${e.message}")
+        Logger.w(TAG, "Failed to read cloud folder cache: ${e.message}")
         null
     }
 
@@ -54,14 +54,14 @@ class CloudFolderCache @Inject constructor(
                 throw e
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to write cloud folder cache: ${e.message}")
+            Logger.e(TAG, "Failed to write cloud folder cache: ${e.message}")
         }
     }
 
     fun remove(serverId: Int, path: String, type: String = "") = try {
         diskCache.remove(cacheKey(serverId, path, type))
     } catch (e: Exception) {
-        Log.w(TAG, "Failed to remove cloud folder cache entry: ${e.message}")
+        Logger.w(TAG, "Failed to remove cloud folder cache entry: ${e.message}")
     }
 
     private fun cacheKey(serverId: Int, path: String, type: String): String {
