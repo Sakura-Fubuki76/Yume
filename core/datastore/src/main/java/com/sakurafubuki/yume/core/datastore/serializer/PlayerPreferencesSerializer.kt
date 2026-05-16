@@ -17,9 +17,12 @@ object PlayerPreferencesSerializer : Serializer<PlayerPreferences> {
 
     override suspend fun readFrom(input: InputStream): PlayerPreferences {
         try {
+            val raw = input.readBytes().decodeToString()
+                .replace("\"AAUDIO\"", "\"AAUDIO_LOW_LATENCY\"")
+                .replace("\"OPENSL_ES\"", "\"AUDIO_TRACK\"")
             return jsonFormat.decodeFromString(
                 deserializer = PlayerPreferences.serializer(),
-                string = input.readBytes().decodeToString(),
+                string = raw,
             )
         } catch (exception: SerializationException) {
             throw CorruptionException("Cannot read datastore", exception)

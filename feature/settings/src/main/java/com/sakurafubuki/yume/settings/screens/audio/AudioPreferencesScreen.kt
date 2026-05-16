@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.sakurafubuki.yume.core.model.AudioOutputMode
 import com.sakurafubuki.yume.core.ui.R
 import com.sakurafubuki.yume.core.ui.components.ClickablePreferenceItem
 import com.sakurafubuki.yume.core.ui.components.ListSectionTitle
@@ -32,6 +33,7 @@ import com.sakurafubuki.yume.core.ui.components.RadioTextButton
 import com.sakurafubuki.yume.core.ui.designsystem.NextIcons
 import com.sakurafubuki.yume.core.ui.theme.YumeTheme
 import com.sakurafubuki.yume.settings.composables.OptionsDialog
+import com.sakurafubuki.yume.settings.extensions.labelRes
 import com.sakurafubuki.yume.settings.utils.LocalesHelper
 
 @Composable
@@ -92,6 +94,12 @@ private fun AudioPreferencesContent(
                     onClick = { onEvent(AudioPreferencesUiEvent.ShowDialog(AudioPreferenceDialog.AudioLanguageDialog)) },
                     isFirstItem = true,
                 )
+                ClickablePreferenceItem(
+                    title = stringResource(id = R.string.audio_output_mode),
+                    description = stringResource(id = uiState.preferences.audioOutputMode.labelRes),
+                    icon = NextIcons.Audio,
+                    onClick = { onEvent(AudioPreferencesUiEvent.ShowDialog(AudioPreferenceDialog.AudioOutputModeDialog)) },
+                )
                 PreferenceSwitch(
                     title = stringResource(R.string.require_audio_focus),
                     description = stringResource(R.string.require_audio_focus_desc),
@@ -137,6 +145,24 @@ private fun AudioPreferencesContent(
                                 selected = it.second == uiState.preferences.preferredAudioLanguage,
                                 onClick = {
                                     onEvent(AudioPreferencesUiEvent.UpdateAudioLanguage(it.second))
+                                    onEvent(AudioPreferencesUiEvent.ShowDialog(null))
+                                },
+                            )
+                        }
+                    }
+                }
+
+                AudioPreferenceDialog.AudioOutputModeDialog -> {
+                    OptionsDialog(
+                        text = stringResource(id = R.string.audio_output_mode),
+                        onDismissClick = { onEvent(AudioPreferencesUiEvent.ShowDialog(null)) },
+                    ) {
+                        items(AudioOutputMode.entries.toTypedArray()) {
+                            RadioTextButton(
+                                text = stringResource(id = it.labelRes),
+                                selected = it == uiState.preferences.audioOutputMode,
+                                onClick = {
+                                    onEvent(AudioPreferencesUiEvent.UpdateAudioOutputMode(it))
                                     onEvent(AudioPreferencesUiEvent.ShowDialog(null))
                                 },
                             )

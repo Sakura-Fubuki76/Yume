@@ -156,6 +156,10 @@
     <string name="high_contrast_dark_theme_desc">在深色主题中使用纯黑背景</string>
     <string name="pause_on_headset_disconnect_desc">耳机从设备断开连接时暂停播放</string>
     <string name="audio_desc">音频播放选项</string>
+    <string name="audio_output_mode">音频输出模式</string>
+    <string name="audio_output_audiotrack">AudioTrack（默认）</string>
+    <string name="audio_output_aaudio_low_latency">AAudio 低延迟</string>
+    <string name="audio_output_aaudio_power_saving">AAudio 省电</string>
     <string name="pause_on_headset_disconnect">断开连接时暂停</string>
     <string name="system_volume_panel_desc">连接着耳机调整音量时显示系统音量面板</string>
     <string name="system_volume_panel">系统音量面板</string>

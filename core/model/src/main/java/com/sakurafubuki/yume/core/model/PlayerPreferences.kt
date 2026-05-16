@@ -38,6 +38,7 @@ data class PlayerPreferences(
     val useMaterialYouControls: Boolean = false,
 
     val preferredAudioLanguage: String = "",
+    val audioOutputMode: AudioOutputMode = AudioOutputMode.AUDIO_TRACK,
     val pauseOnHeadsetDisconnect: Boolean = true,
     val requireAudioFocus: Boolean = true,
     val showSystemVolumePanel: Boolean = true,

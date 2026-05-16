@@ -4,6 +4,7 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
+import com.sakurafubuki.yume.core.model.AudioOutputMode
 import com.sakurafubuki.yume.core.model.PlayerPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -38,6 +39,7 @@ class AudioPreferencesViewModel @Inject constructor(
         when (event) {
             is AudioPreferencesUiEvent.ShowDialog -> showDialog(event.value)
             is AudioPreferencesUiEvent.UpdateAudioLanguage -> updateAudioLanguage(event.value)
+            is AudioPreferencesUiEvent.UpdateAudioOutputMode -> updateAudioOutputMode(event.value)
             AudioPreferencesUiEvent.TogglePauseOnHeadsetDisconnect -> togglePauseOnHeadsetDisconnect()
             AudioPreferencesUiEvent.ToggleShowSystemVolumePanel -> toggleShowSystemVolumePanel()
             AudioPreferencesUiEvent.ToggleRequireAudioFocus -> toggleRequireAudioFocus()
@@ -55,6 +57,14 @@ class AudioPreferencesViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
                 it.copy(preferredAudioLanguage = value)
+            }
+        }
+    }
+
+    private fun updateAudioOutputMode(value: AudioOutputMode) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(audioOutputMode = value)
             }
         }
     }
@@ -100,11 +110,13 @@ data class AudioPreferencesUiState(
 
 sealed interface AudioPreferenceDialog {
     data object AudioLanguageDialog : AudioPreferenceDialog
+    data object AudioOutputModeDialog : AudioPreferenceDialog
 }
 
 sealed interface AudioPreferencesUiEvent {
     data class ShowDialog(val value: AudioPreferenceDialog?) : AudioPreferencesUiEvent
     data class UpdateAudioLanguage(val value: String) : AudioPreferencesUiEvent
+    data class UpdateAudioOutputMode(val value: AudioOutputMode) : AudioPreferencesUiEvent
     data object TogglePauseOnHeadsetDisconnect : AudioPreferencesUiEvent
     data object ToggleShowSystemVolumePanel : AudioPreferencesUiEvent
     data object ToggleRequireAudioFocus : AudioPreferencesUiEvent

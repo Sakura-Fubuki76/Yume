@@ -663,7 +663,7 @@ class PlayerService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         val appPreferences = preferencesRepository.applicationPreferences.value
-        val renderersFactory = SoundTouchRenderersFactory(applicationContext)
+        val renderersFactory = SoundTouchRenderersFactory(applicationContext, playerPreferences.audioOutputMode)
             .setEnableDecoderFallback(true)
             .setExtensionRendererMode(
                 when (playerPreferences.decoderPriority) {
