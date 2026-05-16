@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-PREBUILTS_DIR="app/src/main/cpp/prebuilts"
+PREBUILTS_DIR=
 PREBUILTS_REPO="Sakura-Fubuki76/mpv-android"
 TAG=""
 ABI=""
@@ -14,7 +14,9 @@ while [ $# -gt 0 ]; do
 done
 ABI="${ABI:-arm64-v8a}"
 
-if [ -d "$PREBUILTS_DIR/$ABI" ] && [ "$(ls -A "$PREBUILTS_DIR/$ABI" 2>/dev/null)" ]; then
+PREBUILTS_DIR="app/src/main/cpp/libass/prebuilts-${ABI}"
+
+if [ -d "$PREBUILTS_DIR" ] && [ "$(ls -A "$PREBUILTS_DIR/$ABI" 2>/dev/null)" ]; then
     echo "Prebuilts already exist at $PREBUILTS_DIR/$ABI"
     exit 0
 fi

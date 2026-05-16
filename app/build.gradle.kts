@@ -39,10 +39,33 @@ android {
         targetCompatibility = JavaVersion.toVersion(libs.versions.android.jvm.get().toInt())
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("${project.rootDir}/app/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+
+        create("release") {
+            enableV1Signing = false
+            enableV2Signing = false
+            enableV3Signing = true
+            enableV4Signing = false
+            if (hasProperty("RELEASE_STORE_FILE")) {
+                storeFile = file(findProperty("RELEASE_STORE_FILE")!!)
+                storePassword = findProperty("RELEASE_STORE_PASSWORD") as String?
+                keyAlias = findProperty("RELEASE_KEY_ALIAS") as String?
+                keyPassword = findProperty("RELEASE_KEY_PASSWORD") as String?
+            }
+        }
+    }
+
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -59,28 +82,6 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             applicationIdSuffix = ".release"
             matchingFallbacks.add("release")
-        }
-    }
-
-    signingConfigs {
-        getByName("debug") {
-            storeFile = file("${project.rootDir}/app/debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
-        }
-
-        create("release") {
-            enableV1Signing = true
-            enableV2Signing = true
-            enableV3Signing = true
-            enableV4Signing = true
-            if (hasProperty("RELEASE_STORE_FILE")) {
-                storeFile = file(findProperty("RELEASE_STORE_FILE")!!)
-                storePassword = findProperty("RELEASE_STORE_PASSWORD") as String?
-                keyAlias = findProperty("RELEASE_KEY_ALIAS") as String?
-                keyPassword = findProperty("RELEASE_KEY_PASSWORD") as String?
-            }
         }
     }
 
