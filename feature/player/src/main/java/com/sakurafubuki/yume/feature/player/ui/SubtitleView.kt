@@ -14,8 +14,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.SubtitleView
-import com.sakurafubuki.yume.core.model.Font
-import com.sakurafubuki.yume.feature.player.extensions.toTypeface
 import com.sakurafubuki.yume.feature.player.state.rememberCuesState
 
 @OptIn(UnstableApi::class)
@@ -43,10 +41,7 @@ fun SubtitleView(
                         android.graphics.Color.TRANSPARENT,
                         CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW,
                         android.graphics.Color.BLACK,
-                        Typeface.create(
-                            configuration.font.toTypeface(),
-                            Typeface.BOLD.takeIf { configuration.textBold } ?: Typeface.NORMAL,
-                        ),
+                        Typeface.DEFAULT,
                     )
                     setStyle(userStyle)
                     setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, configuration.textSize.toFloat())
@@ -69,9 +64,7 @@ fun SubtitleView(
 data class SubtitleConfiguration(
     val useSystemCaptionStyle: Boolean,
     val showBackground: Boolean,
-    val font: Font,
     val textSize: Int,
-    val textBold: Boolean,
     val applyEmbeddedStyles: Boolean,
     val textColor: Int = android.graphics.Color.WHITE,
     val customFontsDirectory: String = "",

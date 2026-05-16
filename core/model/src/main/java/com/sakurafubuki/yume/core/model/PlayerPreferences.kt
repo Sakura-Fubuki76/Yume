@@ -48,8 +48,6 @@ data class PlayerPreferences(
     val subtitleTextEncoding: String = "",
     val subtitleTextSize: Int = DEFAULT_SUBTITLE_TEXT_SIZE,
     val subtitleBackground: Boolean = false,
-    val subtitleFont: Font = Font.DEFAULT,
-    val subtitleTextBold: Boolean = true,
     val applyEmbeddedStyles: Boolean = true,
     val assSubtitleTextColor: Int = DEFAULT_ASS_SUBTITLE_TEXT_COLOR,
     val customFontsDirectory: String = "",

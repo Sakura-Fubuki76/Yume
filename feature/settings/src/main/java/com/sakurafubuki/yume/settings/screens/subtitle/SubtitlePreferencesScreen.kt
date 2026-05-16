@@ -30,7 +30,6 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.sakurafubuki.yume.core.model.Font
 import com.sakurafubuki.yume.core.model.PlayerPreferences
 import com.sakurafubuki.yume.core.ui.R
 import com.sakurafubuki.yume.core.ui.components.ClickablePreferenceItem
@@ -43,7 +42,6 @@ import com.sakurafubuki.yume.core.ui.components.RadioTextButton
 import com.sakurafubuki.yume.core.ui.designsystem.NextIcons
 import com.sakurafubuki.yume.core.ui.theme.YumeTheme
 import com.sakurafubuki.yume.settings.composables.OptionsDialog
-import com.sakurafubuki.yume.settings.extensions.name
 import com.sakurafubuki.yume.settings.utils.LocalesHelper
 import java.nio.charset.Charset
 
@@ -157,21 +155,6 @@ private fun SubtitlePreferencesContent(
                     onClick = { context.startActivity(Intent(Settings.ACTION_CAPTIONING_SETTINGS)) },
                     isFirstItem = true,
                 )
-                ClickablePreferenceItem(
-                    title = stringResource(id = R.string.subtitle_font),
-                    description = uiState.preferences.subtitleFont.name(),
-                    icon = NextIcons.Font,
-                    enabled = uiState.preferences.useSystemCaptionStyle.not(),
-                    onClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(SubtitlePreferenceDialog.SubtitleFontDialog)) },
-                )
-                PreferenceSwitch(
-                    title = stringResource(id = R.string.subtitle_text_bold),
-                    description = stringResource(id = R.string.subtitle_text_bold_desc),
-                    icon = NextIcons.Bold,
-                    enabled = uiState.preferences.useSystemCaptionStyle.not(),
-                    isChecked = uiState.preferences.subtitleTextBold,
-                    onClick = { onEvent(SubtitlePreferencesUiEvent.ToggleSubtitleTextBold) },
-                )
                 PreferenceSlider(
                     title = stringResource(id = R.string.subtitle_text_size),
                     description = uiState.preferences.subtitleTextSize.toString(),
@@ -232,24 +215,6 @@ private fun SubtitlePreferencesContent(
                                 selected = it.second == uiState.preferences.preferredSubtitleLanguage,
                                 onClick = {
                                     onEvent(SubtitlePreferencesUiEvent.UpdateSubtitleLanguage(it.second))
-                                    onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
-                                },
-                            )
-                        }
-                    }
-                }
-
-                SubtitlePreferenceDialog.SubtitleFontDialog -> {
-                    OptionsDialog(
-                        text = stringResource(id = R.string.subtitle_font),
-                        onDismissClick = { onEvent(SubtitlePreferencesUiEvent.ShowDialog(null)) },
-                    ) {
-                        items(Font.entries.toTypedArray()) {
-                            RadioTextButton(
-                                text = it.name(),
-                                selected = it == uiState.preferences.subtitleFont,
-                                onClick = {
-                                    onEvent(SubtitlePreferencesUiEvent.UpdateSubtitleFont(it))
                                     onEvent(SubtitlePreferencesUiEvent.ShowDialog(null))
                                 },
                             )

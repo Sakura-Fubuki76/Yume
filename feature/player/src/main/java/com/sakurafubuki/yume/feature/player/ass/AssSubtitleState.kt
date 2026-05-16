@@ -423,18 +423,9 @@ class AssSubtitleState {
     fun applyStyleOverride(configuration: SubtitleConfiguration) {
         if (handle == 0L) return
 
-        val fontFamily = when (configuration.font) {
-            com.sakurafubuki.yume.core.model.Font.DEFAULT -> null
-            com.sakurafubuki.yume.core.model.Font.MONOSPACE -> "monospace"
-            com.sakurafubuki.yume.core.model.Font.SANS_SERIF -> "sans-serif"
-            com.sakurafubuki.yume.core.model.Font.SERIF -> "serif"
-        }
-
         AssRenderer.nativeSetStyleOverride(
             handle,
-            fontFamily,
             configuration.textSize.toFloat(),
-            configuration.textBold,
             configuration.textColor,
             configuration.showBackground,
             configuration.applyEmbeddedStyles,

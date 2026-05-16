@@ -250,9 +250,7 @@ fun MediaPlayerScreen(
                     subtitleConfiguration = SubtitleConfiguration(
                         useSystemCaptionStyle = playerPreferences.useSystemCaptionStyle,
                         showBackground = playerPreferences.subtitleBackground,
-                        font = playerPreferences.subtitleFont,
                         textSize = playerPreferences.subtitleTextSize,
-                        textBold = playerPreferences.subtitleTextBold,
                         applyEmbeddedStyles = playerPreferences.applyEmbeddedStyles,
                         textColor = playerPreferences.assSubtitleTextColor,
                         customFontsDirectory = playerPreferences.customFontsDirectory,

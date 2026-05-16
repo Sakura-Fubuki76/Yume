@@ -645,8 +645,7 @@ Java_com_sakurafubuki_yume_feature_player_ass_AssRenderer_nativeFlushEvents(
 extern "C" JNIEXPORT void JNICALL
 Java_com_sakurafubuki_yume_feature_player_ass_AssRenderer_nativeSetStyleOverride(
     JNIEnv* env, jobject, jlong handle,
-    jstring fontName, jfloat fontSize, jboolean bold,
-    jint textColor, jboolean showBackground, jboolean applyEmbeddedStyles)
+    jfloat fontSize, jint textColor, jboolean showBackground, jboolean applyEmbeddedStyles)
 {
     AssContext* ctx = reinterpret_cast<AssContext*>(handle);
     if (!ctx) return;
@@ -657,7 +656,6 @@ Java_com_sakurafubuki_yume_feature_player_ass_AssRenderer_nativeSetStyleOverride
         ctx->ycbcrMatrix = YCBCR_NONE;
         ASS_Style style = {};
         style.FontSize = fontSize > 0.f ? (double)fontSize : 20.0;
-        style.Bold     = bold ? 1 : 0;
         uint8_t a = (textColor >> 24) & 0xFF;
         uint8_t r = (textColor >> 16) & 0xFF;
         uint8_t g = (textColor >>  8) & 0xFF;
@@ -668,14 +666,11 @@ Java_com_sakurafubuki_yume_feature_player_ass_AssRenderer_nativeSetStyleOverride
         style.BackColour      = showBackground ? 0x000000FF : 0x00000000;
         style.Outline = 2.0; style.Shadow = 1.0;
         style.BorderStyle = 1; style.ScaleX = 1.0; style.ScaleY = 1.0;
-        const char* fname = fontName ? env->GetStringUTFChars(fontName, nullptr) : nullptr;
-        if (fname) style.FontName = strdup(fname);
         ass_set_selective_style_override(ctx->renderer, &style);
-        int bits = ASS_OVERRIDE_BIT_FONT_NAME | ASS_OVERRIDE_BIT_FONT_SIZE_FIELDS
-                 | ASS_OVERRIDE_BIT_COLORS | ASS_OVERRIDE_BIT_ATTRIBUTES
+        int bits = ASS_OVERRIDE_BIT_FONT_SIZE_FIELDS
+                 | ASS_OVERRIDE_BIT_COLORS
                  | ASS_OVERRIDE_BIT_BORDER;
         ass_set_selective_style_override_enabled(ctx->renderer, bits);
-        if (fname) { env->ReleaseStringUTFChars(fontName, fname); free(style.FontName); }
     } else {
         ass_set_selective_style_override_enabled(ctx->renderer, 0);
     }

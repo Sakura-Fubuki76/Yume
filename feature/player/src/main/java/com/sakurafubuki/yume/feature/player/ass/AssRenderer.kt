@@ -19,9 +19,7 @@ object AssRenderer {
     external fun nativeFlushEvents(handle: Long)
     external fun nativeSetStyleOverride(
         handle: Long,
-        fontName: String?,
         fontSize: Float,
-        bold: Boolean,
         textColor: Int,
         showBackground: Boolean,
         applyEmbeddedStyles: Boolean,

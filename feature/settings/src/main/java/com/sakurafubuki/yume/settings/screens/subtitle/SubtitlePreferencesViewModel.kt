@@ -4,7 +4,6 @@ import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
-import com.sakurafubuki.yume.core.model.Font
 import com.sakurafubuki.yume.core.model.PlayerPreferences
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -39,8 +38,6 @@ class SubtitlePreferencesViewModel @Inject constructor(
         when (event) {
             is SubtitlePreferencesUiEvent.ShowDialog -> showDialog(event.value)
             is SubtitlePreferencesUiEvent.UpdateSubtitleLanguage -> updateSubtitleLanguage(event.value)
-            is SubtitlePreferencesUiEvent.UpdateSubtitleFont -> updateSubtitleFont(event.value)
-            SubtitlePreferencesUiEvent.ToggleSubtitleTextBold -> toggleSubtitleTextBold()
             is SubtitlePreferencesUiEvent.UpdateSubtitleFontSize -> updateSubtitleFontSize(event.value)
             SubtitlePreferencesUiEvent.ToggleSubtitleBackground -> toggleSubtitleBackground()
             SubtitlePreferencesUiEvent.ToggleApplyEmbeddedStyles -> toggleApplyEmbeddedStyles()
@@ -60,22 +57,6 @@ class SubtitlePreferencesViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
                 it.copy(preferredSubtitleLanguage = value)
-            }
-        }
-    }
-
-    private fun updateSubtitleFont(value: Font) {
-        viewModelScope.launch {
-            preferencesRepository.updatePlayerPreferences {
-                it.copy(subtitleFont = value)
-            }
-        }
-    }
-
-    private fun toggleSubtitleTextBold() {
-        viewModelScope.launch {
-            preferencesRepository.updatePlayerPreferences {
-                it.copy(subtitleTextBold = !it.subtitleTextBold)
             }
         }
     }
@@ -131,15 +112,12 @@ data class SubtitlePreferencesUiState(
 
 sealed interface SubtitlePreferenceDialog {
     data object SubtitleLanguageDialog : SubtitlePreferenceDialog
-    data object SubtitleFontDialog : SubtitlePreferenceDialog
     data object SubtitleEncodingDialog : SubtitlePreferenceDialog
 }
 
 sealed interface SubtitlePreferencesUiEvent {
     data class ShowDialog(val value: SubtitlePreferenceDialog?) : SubtitlePreferencesUiEvent
     data class UpdateSubtitleLanguage(val value: String) : SubtitlePreferencesUiEvent
-    data class UpdateSubtitleFont(val value: Font) : SubtitlePreferencesUiEvent
-    data object ToggleSubtitleTextBold : SubtitlePreferencesUiEvent
     data class UpdateSubtitleFontSize(val value: Int) : SubtitlePreferencesUiEvent
     data object ToggleSubtitleBackground : SubtitlePreferencesUiEvent
     data object ToggleApplyEmbeddedStyles : SubtitlePreferencesUiEvent
