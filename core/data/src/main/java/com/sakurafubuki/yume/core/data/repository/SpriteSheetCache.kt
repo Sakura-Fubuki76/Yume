@@ -39,14 +39,13 @@ object SpriteSheetCache {
     }
 
     fun get(key: String): CachedSheet? {
-
         synchronized(lock) {
             memoryCache[key]?.let { return it }
         }
 
         val dir = cacheDir ?: return null
-        val spriteFile = File(dir, "${key}.webp")
-        val metaFile = File(dir, "${key}.json")
+        val spriteFile = File(dir, "$key.webp")
+        val metaFile = File(dir, "$key.json")
         if (!spriteFile.exists() || !metaFile.exists()) return null
 
         spriteFile.setLastModified(System.currentTimeMillis())
@@ -77,8 +76,8 @@ object SpriteSheetCache {
 
     fun loadFresh(key: String): CachedSheet? {
         val dir = cacheDir ?: return null
-        val spriteFile = File(dir, "${key}.webp")
-        val metaFile = File(dir, "${key}.json")
+        val spriteFile = File(dir, "$key.webp")
+        val metaFile = File(dir, "$key.json")
         if (!spriteFile.exists() || !metaFile.exists()) return null
 
         val metadata = try {
@@ -120,7 +119,6 @@ object SpriteSheetCache {
     }
 
     private fun evictDisk(dir: File) {
-
         val files = dir.listFiles()?.toList() ?: return
         if (files.isEmpty()) return
 
@@ -138,5 +136,4 @@ object SpriteSheetCache {
             }
         }
     }
-
 }

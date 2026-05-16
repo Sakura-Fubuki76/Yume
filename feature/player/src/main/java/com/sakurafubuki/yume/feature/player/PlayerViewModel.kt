@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.sakurafubuki.yume.core.data.repository.MediaRepository
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.domain.GetSortedPlaylistUseCase
@@ -15,6 +14,7 @@ import com.sakurafubuki.yume.core.model.VideoContentScale
 import com.sakurafubuki.yume.feature.player.ass.AssSubtitleState
 import com.sakurafubuki.yume.feature.player.state.SubtitleOptionsEvent
 import com.sakurafubuki.yume.feature.player.state.VideoZoomEvent
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

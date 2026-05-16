@@ -10,6 +10,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
@@ -25,14 +26,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
@@ -42,8 +44,8 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,9 +60,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -92,7 +96,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
-import java.io.File
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -117,16 +120,13 @@ import com.sakurafubuki.yume.core.ui.motion.LocalSharedElementRegistry
 import com.sakurafubuki.yume.core.ui.motion.LocalTransitionEngine
 import com.sakurafubuki.yume.core.ui.motion.SharedElementRegistry
 import com.sakurafubuki.yume.core.ui.motion.TransitionType
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.abs
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.layout.plus
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 private val LocalGridLockState = compositionLocalOf { mutableStateOf(false) }
 
@@ -163,8 +163,7 @@ object ImageViewerStore {
         launchOriginBounds = registry.getBounds(uri)
     }
 
-    fun displayUriFor(uri: String): String =
-        images.firstOrNull { it.uriString == uri }?.displayUriString() ?: uri
+    fun displayUriFor(uri: String): String = images.firstOrNull { it.uriString == uri }?.displayUriString() ?: uri
 }
 
 private const val TAG = "ImageViewer"
@@ -207,7 +206,9 @@ private object GridImageLoadMemory {
     fun contains(uri: String): Boolean = loadedUris.containsKey(uri)
 
     @Synchronized
-    fun add(uri: String) { loadedUris[uri] = true }
+    fun add(uri: String) {
+        loadedUris[uri] = true
+    }
 }
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -286,8 +287,8 @@ private fun ImageBrowserScreen(
     val selectedCloudServer = uiState.webDavServers.firstOrNull { it.id == uiState.selectedCloudServerId }
         ?: uiState.webDavServers.firstOrNull()
     val canNavigateCloudUp = uiState.mode == MediaMode.CLOUD &&
-            selectedCloudServer != null &&
-            normalizePath(uiState.cloudPath) != normalizePath(selectedCloudServer.basePath)
+        selectedCloudServer != null &&
+        normalizePath(uiState.cloudPath) != normalizePath(selectedCloudServer.basePath)
     val canNavigateLocalUp = uiState.mode == MediaMode.LOCAL && normalizePath(uiState.localPath) != "/"
 
     val currentGalleryState = when (uiState.mode) {
@@ -361,14 +362,14 @@ private fun ImageBrowserScreen(
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                            Icon(
-                                imageVector = if (uiState.mode == MediaMode.CLOUD) NextIcons.Cloud else NextIcons.Folder,
-                                contentDescription = if (uiState.mode == MediaMode.CLOUD) {
-                                    stringResource(R.string.switch_to_local_mode)
-                                } else {
-                                    stringResource(R.string.switch_to_cloud_mode)
-                                },
-                            )
+                        Icon(
+                            imageVector = if (uiState.mode == MediaMode.CLOUD) NextIcons.Cloud else NextIcons.Folder,
+                            contentDescription = if (uiState.mode == MediaMode.CLOUD) {
+                                stringResource(R.string.switch_to_local_mode)
+                            } else {
+                                stringResource(R.string.switch_to_cloud_mode)
+                            },
+                        )
                     }
                     IconButton(onClick = { showQuickSettingsDialog = true }) {
                         Icon(imageVector = NextIcons.DashBoard, contentDescription = stringResource(R.string.menu))
@@ -871,11 +872,11 @@ private fun ImageMediaView(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                            Text(
-                                text = stringResource(R.string.loading_more),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        Text(
+                            text = stringResource(R.string.loading_more),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
@@ -1336,11 +1337,10 @@ private fun parentPath(path: String): String {
 
 private fun Video.displayUriString(): String = thumbnailUriString?.takeIf { it.isNotBlank() } ?: uriString
 
-private fun localNavigateUpTarget(path: String, imageViewMode: MediaViewMode): String =
-    when (imageViewMode) {
-        MediaViewMode.FOLDERS -> "/"
-        else -> parentPath(path)
-    }
+private fun localNavigateUpTarget(path: String, imageViewMode: MediaViewMode): String = when (imageViewMode) {
+    MediaViewMode.FOLDERS -> "/"
+    else -> parentPath(path)
+}
 
 private fun decodeCloudFolderPath(path: String): Pair<Int, String>? {
     if (!path.startsWith(CLOUD_SERVER_PATH_PREFIX)) return null
@@ -1526,10 +1526,10 @@ fun ImageViewerRoute(
     }
 
     val shouldShowHeroOverlay = showHeroOverlay &&
-            animationReady &&
-            !useFallbackCloseAnimation &&
-            overlayViewportRect.width > 1f &&
-            overlayViewportRect.height > 1f
+        animationReady &&
+        !useFallbackCloseAnimation &&
+        overlayViewportRect.width > 1f &&
+        overlayViewportRect.height > 1f
     val overlayProgress = transitionEngine.progress.coerceIn(0f, 1f)
     val overlayStartRect = transitionStartBounds ?: overlayViewportRect
     val overlayEndRect = transitionEndBounds ?: overlayViewportRect
@@ -1552,7 +1552,7 @@ fun ImageViewerRoute(
             bottom = startBounds.bottom.coerceAtMost(overlayViewportRect.height),
         )
         val clampedValid = (clampedStart.right - clampedStart.left) > 16f &&
-                (clampedStart.bottom - clampedStart.top) > 16f
+            (clampedStart.bottom - clampedStart.top) > 16f
         val launchImageUri = launchUri
             ?.takeIf { images.any { img -> img.uriString == it } }
             ?: images[launchIndex].uriString
@@ -1585,7 +1585,6 @@ fun ImageViewerRoute(
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-
         val predictiveBackEnabled = true
         PredictiveBackHandler(enabled = predictiveBackEnabled) { progress ->
 
@@ -1627,7 +1626,6 @@ fun ImageViewerRoute(
             )
 
             try {
-
                 progress.collect { backEvent ->
                     transitionEngine.updateProgress(backEvent.progress)
                 }
@@ -1689,7 +1687,6 @@ fun ImageViewerRoute(
                 ImageViewerStore.heroTransitionImageUri = null
                 awaitRoutePop()
                 requestNavigateBackOnce()
-
             } catch (_: CancellationException) {
                 animate(
                     initialValue = transitionEngine.progress.coerceIn(0f, 1f),
@@ -1785,12 +1782,12 @@ fun ImageViewerRoute(
                     onScaleChanged = { scale -> pageScales[page] = scale },
                     onMultiTouchChanged = { active -> isPinchActive = active },
                     enableSwipeToDismiss = page == pagerState.currentPage &&
-                            hasPlayedLaunchTransition &&
-                            !isAwaitingRoutePop &&
-                            (!isTransitionRunning || isGestureDragInProgress) &&
-                            !heroOverlayActive &&
-                            !isPinchActive &&
-                            currentPageScale <= 1.01f,
+                        hasPlayedLaunchTransition &&
+                        !isAwaitingRoutePop &&
+                        (!isTransitionRunning || isGestureDragInProgress) &&
+                        !heroOverlayActive &&
+                        !isPinchActive &&
+                        currentPageScale <= 1.01f,
                     swipeDismissHeightPx = fullRect.height,
                     swipeDismissWidthPx = fullRect.width,
                     onSwipeDismissProgress = { dismissProgress ->

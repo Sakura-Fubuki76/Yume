@@ -2,9 +2,9 @@ package com.sakurafubuki.yume.core.data.webdav
 
 import android.net.Uri
 import android.webkit.MimeTypeMap
-import com.thegrizzlylabs.sardineandroid.Sardine
 import com.sakurafubuki.yume.core.model.WebDavMediaItem
 import com.sakurafubuki.yume.core.model.WebDavServer
+import com.thegrizzlylabs.sardineandroid.Sardine
 import java.io.InputStream
 import java.util.Date
 import javax.inject.Inject
@@ -68,18 +68,15 @@ class WebDavRepositoryImpl @Inject constructor(
 
     private val sardineByServer = java.util.concurrent.ConcurrentHashMap<Int, Sardine>()
 
-    private fun getSardine(server: WebDavServer): Sardine {
-        return sardineByServer.getOrPut(server.id) {
-            sardineFactory.create().apply {
-                setCredentials(server.username, server.password, true)
-            }
+    private fun getSardine(server: WebDavServer): Sardine = sardineByServer.getOrPut(server.id) {
+        sardineFactory.create().apply {
+            setCredentials(server.username, server.password, true)
         }
     }
 
-    private suspend fun <T> withSardine(server: WebDavServer, block: Sardine.() -> T): T =
-        withContext(Dispatchers.IO) {
-            getSardine(server).block()
-        }
+    private suspend fun <T> withSardine(server: WebDavServer, block: Sardine.() -> T): T = withContext(Dispatchers.IO) {
+        getSardine(server).block()
+    }
 
     fun onServerRemoved(serverId: Int) {
         sardineByServer.remove(serverId)

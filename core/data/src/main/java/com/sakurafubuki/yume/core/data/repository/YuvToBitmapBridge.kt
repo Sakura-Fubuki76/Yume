@@ -12,33 +12,58 @@ object YuvToBitmapBridge {
 
     @JvmStatic
     external fun imageToBitmap(
-        yBuf: ByteBuffer, yRowStride: Int, yPixelStride: Int,
-        uBuf: ByteBuffer, uRowStride: Int, uPixelStride: Int,
-        vBuf: ByteBuffer, vRowStride: Int, vPixelStride: Int,
-        cropLeft: Int, cropTop: Int, cropWidth: Int, cropHeight: Int,
-        colorStandard: Int, colorRange: Int,
+        yBuf: ByteBuffer,
+        yRowStride: Int,
+        yPixelStride: Int,
+        uBuf: ByteBuffer,
+        uRowStride: Int,
+        uPixelStride: Int,
+        vBuf: ByteBuffer,
+        vRowStride: Int,
+        vPixelStride: Int,
+        cropLeft: Int,
+        cropTop: Int,
+        cropWidth: Int,
+        cropHeight: Int,
+        colorStandard: Int,
+        colorRange: Int,
         forceNV21: Boolean,
     ): Bitmap?
 
     @JvmStatic
     external fun bufferToBitmap(
-        yuvBuffer: ByteBuffer, offset: Int,
-        colorFormat: Int, stride: Int, sliceHeight: Int,
-        cropLeft: Int, cropTop: Int, cropWidth: Int, cropHeight: Int,
-        colorStandard: Int, colorRange: Int,
+        yuvBuffer: ByteBuffer,
+        offset: Int,
+        colorFormat: Int,
+        stride: Int,
+        sliceHeight: Int,
+        cropLeft: Int,
+        cropTop: Int,
+        cropWidth: Int,
+        cropHeight: Int,
+        colorStandard: Int,
+        colorRange: Int,
         forceNV21: Boolean,
     ): Bitmap?
 
     @JvmStatic
     external fun i420Scale(
-        srcY: ByteBuffer, srcStrideY: Int,
-        srcU: ByteBuffer, srcStrideU: Int,
-        srcV: ByteBuffer, srcStrideV: Int,
-        srcWidth: Int, srcHeight: Int,
-        dstY: ByteBuffer, dstStrideY: Int,
-        dstU: ByteBuffer, dstStrideU: Int,
-        dstV: ByteBuffer, dstStrideV: Int,
-        dstWidth: Int, dstHeight: Int,
+        srcY: ByteBuffer,
+        srcStrideY: Int,
+        srcU: ByteBuffer,
+        srcStrideU: Int,
+        srcV: ByteBuffer,
+        srcStrideV: Int,
+        srcWidth: Int,
+        srcHeight: Int,
+        dstY: ByteBuffer,
+        dstStrideY: Int,
+        dstU: ByteBuffer,
+        dstStrideU: Int,
+        dstV: ByteBuffer,
+        dstStrideV: Int,
+        dstWidth: Int,
+        dstHeight: Int,
         filterMode: Int,
     ): Boolean
 
@@ -46,20 +71,29 @@ object YuvToBitmapBridge {
     external fun compositeToSheet(
         frameBitmap: Bitmap,
         sheetBitmap: Bitmap,
-        col: Int, row: Int,
-        frameWidth: Int, frameHeight: Int,
+        col: Int,
+        row: Int,
+        frameWidth: Int,
+        frameHeight: Int,
         cols: Int,
     ): Boolean
 
     @JvmStatic
     external fun nv12ScaleToI420(
-        srcY: ByteBuffer, srcStrideY: Int,
-        srcUV: ByteBuffer, srcStrideUV: Int,
-        srcWidth: Int, srcHeight: Int,
-        dstY: ByteBuffer, dstStrideY: Int,
-        dstU: ByteBuffer, dstStrideU: Int,
-        dstV: ByteBuffer, dstStrideV: Int,
-        dstWidth: Int, dstHeight: Int,
+        srcY: ByteBuffer,
+        srcStrideY: Int,
+        srcUV: ByteBuffer,
+        srcStrideUV: Int,
+        srcWidth: Int,
+        srcHeight: Int,
+        dstY: ByteBuffer,
+        dstStrideY: Int,
+        dstU: ByteBuffer,
+        dstStrideU: Int,
+        dstV: ByteBuffer,
+        dstStrideV: Int,
+        dstWidth: Int,
+        dstHeight: Int,
         filterMode: Int,
         forceNV21: Boolean,
     ): Boolean
@@ -74,8 +108,10 @@ object YuvToBitmapBridge {
 
     fun scaleTwoPassFromImage(
         image: Image,
-        midWidth: Int = 320, midHeight: Int = 180,
-        dstWidth: Int = 160, dstHeight: Int = 90,
+        midWidth: Int = 320,
+        midHeight: Int = 180,
+        dstWidth: Int = 160,
+        dstHeight: Int = 90,
         filterMode: Int = FilterMode.BOX,
         forceNV21: Boolean = false,
     ): ScaledYuv? {
@@ -106,7 +142,9 @@ object YuvToBitmapBridge {
         }
         if (!stage1Ok) return null
 
-        midY.rewind(); midU.rewind(); midV.rewind()
+        midY.rewind()
+        midU.rewind()
+        midV.rewind()
         val (dstY, dstU, dstV) = allocateYuvPlanes(dstWidth, dstHeight)
         if (!i420Scale(
                 midY, midWidth, midU, midWidth / 2, midV, midWidth / 2,
@@ -114,21 +152,28 @@ object YuvToBitmapBridge {
                 dstY, dstWidth, dstU, dstWidth / 2, dstV, dstWidth / 2,
                 dstWidth, dstHeight, filterMode,
             )
-        ) return null
+        ) {
+            return null
+        }
 
         return ScaledYuv(dstY, dstU, dstV, dstWidth, dstHeight)
     }
 
     fun scaleTwoPass(
-        srcY: ByteBuffer, srcStrideY: Int,
-        srcU: ByteBuffer, srcStrideU: Int,
-        srcV: ByteBuffer, srcStrideV: Int,
-        srcWidth: Int, srcHeight: Int,
-        midWidth: Int = 320, midHeight: Int = 180,
-        dstWidth: Int = 160, dstHeight: Int = 90,
+        srcY: ByteBuffer,
+        srcStrideY: Int,
+        srcU: ByteBuffer,
+        srcStrideU: Int,
+        srcV: ByteBuffer,
+        srcStrideV: Int,
+        srcWidth: Int,
+        srcHeight: Int,
+        midWidth: Int = 320,
+        midHeight: Int = 180,
+        dstWidth: Int = 160,
+        dstHeight: Int = 90,
         filterMode: Int = FilterMode.BOX,
     ): ScaledYuv? {
-
         val (midY, midU, midV) = allocateYuvPlanes(midWidth, midHeight)
         if (!i420Scale(
                 srcY, srcStrideY, srcU, srcStrideU, srcV, srcStrideV,
@@ -136,9 +181,13 @@ object YuvToBitmapBridge {
                 midY, midWidth, midU, midWidth / 2, midV, midWidth / 2,
                 midWidth, midHeight, filterMode,
             )
-        ) return null
+        ) {
+            return null
+        }
 
-        midY.rewind(); midU.rewind(); midV.rewind()
+        midY.rewind()
+        midU.rewind()
+        midV.rewind()
         val (dstY, dstU, dstV) = allocateYuvPlanes(dstWidth, dstHeight)
         if (!i420Scale(
                 midY, midWidth, midU, midWidth / 2, midV, midWidth / 2,
@@ -146,7 +195,9 @@ object YuvToBitmapBridge {
                 dstY, dstWidth, dstU, dstWidth / 2, dstV, dstWidth / 2,
                 dstWidth, dstHeight, filterMode,
             )
-        ) return null
+        ) {
+            return null
+        }
 
         return ScaledYuv(dstY, dstU, dstV, dstWidth, dstHeight)
     }
@@ -160,7 +211,6 @@ object YuvToBitmapBridge {
             ByteBuffer.allocateDirect(uvSize),
         )
     }
-
 }
 
 data class ScaledYuv(

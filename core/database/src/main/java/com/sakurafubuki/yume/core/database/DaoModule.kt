@@ -1,16 +1,16 @@
 package com.sakurafubuki.yume.core.database
 
+import com.sakurafubuki.yume.core.database.dao.DirectoryDao
+import com.sakurafubuki.yume.core.database.dao.ImageDimensionDao
+import com.sakurafubuki.yume.core.database.dao.MediumDao
+import com.sakurafubuki.yume.core.database.dao.WebDavDirectoryItemDao
+import com.sakurafubuki.yume.core.database.dao.WebDavFolderMetadataDao
+import com.sakurafubuki.yume.core.database.dao.WebDavServerDao
+import com.sakurafubuki.yume.core.database.dao.WebDavVideoMetadataDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import com.sakurafubuki.yume.core.database.dao.DirectoryDao
-import com.sakurafubuki.yume.core.database.dao.ImageDimensionDao
-import com.sakurafubuki.yume.core.database.dao.MediumDao
-import com.sakurafubuki.yume.core.database.dao.WebDavFolderMetadataDao
-import com.sakurafubuki.yume.core.database.dao.WebDavDirectoryItemDao
-import com.sakurafubuki.yume.core.database.dao.WebDavServerDao
-import com.sakurafubuki.yume.core.database.dao.WebDavVideoMetadataDao
 
 @Module
 @InstallIn(SingletonComponent::class)

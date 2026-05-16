@@ -3,22 +3,27 @@ package com.sakurafubuki.yume.feature.player.ass
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import androidx.media3.common.Player
 import com.jakewharton.disklrucache.DiskLruCache
 import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.feature.player.ui.SubtitleConfiguration
+import java.io.File
+import java.security.MessageDigest
+import kotlin.text.Charsets
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.File
-import java.security.MessageDigest
-import kotlin.text.Charsets
-import androidx.core.net.toUri
 
 private val FONT_EXTENSIONS = setOf("otf", "ttf", "ttc", "otc", "pfb", "pfa")
 private val httpClient = OkHttpClient()
@@ -41,12 +46,10 @@ private fun getAssDiskCache(context: Context): DiskLruCache {
     }
 }
 
-private fun assCacheKey(uri: String): String {
-    return MessageDigest.getInstance("SHA-256")
-        .digest(uri.toByteArray(Charsets.UTF_8))
-        .take(16)
-        .joinToString("") { "%02x".format(it) }
-}
+private fun assCacheKey(uri: String): String = MessageDigest.getInstance("SHA-256")
+    .digest(uri.toByteArray(Charsets.UTF_8))
+    .take(16)
+    .joinToString("") { "%02x".format(it) }
 
 @Composable
 fun rememberAssSubtitleState(
@@ -63,27 +66,27 @@ fun rememberAssSubtitleState(
         fontCacheDir.mkdirs()
         configFile.writeText(
             "<?xml version=\"1.0\"?>\n" +
-                    "<fontconfig>\n" +
-                    "    <dir>/system/fonts</dir>\n" +
-                    "    <dir>/product/fonts</dir>\n" +
-                    "    <dir>/vendor/fonts</dir>\n" +
-                    "    <cachedir>" + fontCacheDir.absolutePath + "</cachedir>\n" +
-                    "\n" +
-                    "    <!-- Fallback to system CJK fonts for glyphs not covered by custom fonts -->\n" +
-                    "    <!-- Also provides proper Latin glyphs (not thin/raised) when custom CJK font lacks them -->\n" +
-                    "    <match target=\"pattern\">\n" +
-                    "        <edit name=\"family\" mode=\"append\">\n" +
-                    "            <string>MiSans VF</string>\n" +
-                    "            <string>Noto Sans CJK SC</string>\n" +
-                    "        </edit>\n" +
-                    "    </match>\n" +
-                    "\n" +
-                    "    <match target=\"pattern\">\n" +
-                    "        <edit name=\"lang\" mode=\"assign\">\n" +
-                    "            <string>und</string>\n" +
-                    "        </edit>\n" +
-                    "    </match>\n" +
-                    "</fontconfig>\n",
+                "<fontconfig>\n" +
+                "    <dir>/system/fonts</dir>\n" +
+                "    <dir>/product/fonts</dir>\n" +
+                "    <dir>/vendor/fonts</dir>\n" +
+                "    <cachedir>" + fontCacheDir.absolutePath + "</cachedir>\n" +
+                "\n" +
+                "    <!-- Fallback to system CJK fonts for glyphs not covered by custom fonts -->\n" +
+                "    <!-- Also provides proper Latin glyphs (not thin/raised) when custom CJK font lacks them -->\n" +
+                "    <match target=\"pattern\">\n" +
+                "        <edit name=\"family\" mode=\"append\">\n" +
+                "            <string>MiSans VF</string>\n" +
+                "            <string>Noto Sans CJK SC</string>\n" +
+                "        </edit>\n" +
+                "    </match>\n" +
+                "\n" +
+                "    <match target=\"pattern\">\n" +
+                "        <edit name=\"lang\" mode=\"assign\">\n" +
+                "            <string>und</string>\n" +
+                "        </edit>\n" +
+                "    </match>\n" +
+                "</fontconfig>\n",
         )
         AssRenderer.nativeSetFontConfig(state.handle, configFile.absolutePath)
     }
@@ -96,7 +99,6 @@ fun rememberAssSubtitleState(
         }
         val key = assFileUri.toString()
         val bytes = withContext(Dispatchers.IO) {
-
             val cache = getAssDiskCache(context)
             val cacheKey = assCacheKey(key)
             val cached = runCatching {
@@ -183,6 +185,7 @@ class AssSubtitleState {
     companion object {
         @Volatile
         private var globalHandle: Long = 0
+
         @Volatile
         private var fontsAlreadyLoaded: Boolean = false
 
@@ -357,7 +360,11 @@ class AssSubtitleState {
         fontNames: Set<String>,
         onLoaded: () -> Unit,
     ) {
-        val files = try { document.listFiles() } catch (_: Exception) { return }
+        val files = try {
+            document.listFiles()
+        } catch (_: Exception) {
+            return
+        }
         val resolver = context.contentResolver
 
         for (file in files) {
@@ -371,9 +378,11 @@ class AssSubtitleState {
                 val baseName = name.substringBeforeLast('.')
                 val matches = fontNames.any { fn ->
                     baseName.equals(fn, ignoreCase = true) ||
-                    (baseName.length > fn.length &&
-                        baseName.startsWith(fn, ignoreCase = true) &&
-                        baseName[fn.length] in charArrayOf(' ', '-', '_'))
+                        (
+                            baseName.length > fn.length &&
+                                baseName.startsWith(fn, ignoreCase = true) &&
+                                baseName[fn.length] in charArrayOf(' ', '-', '_')
+                            )
                 }
                 if (!matches) continue
 
@@ -393,7 +402,7 @@ class AssSubtitleState {
 
     fun setFrameSize(width: Int, height: Int) {
         if (width <= 0 || height <= 0) return
-        Logger.d("AssSubtitleState", "setFrameSize: ${width}x${height}")
+        Logger.d("AssSubtitleState", "setFrameSize: ${width}x$height")
         if (handle != 0L) {
             AssRenderer.nativeSetFrameSize(handle, width, height)
         }

@@ -5,11 +5,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.sakurafubuki.yume.core.database.dao.DirectoryDao
+import com.sakurafubuki.yume.core.database.dao.ImageDimensionDao
 import com.sakurafubuki.yume.core.database.dao.MediumDao
 import com.sakurafubuki.yume.core.database.dao.MediumStateDao
-import com.sakurafubuki.yume.core.database.dao.ImageDimensionDao
-import com.sakurafubuki.yume.core.database.dao.WebDavFolderMetadataDao
 import com.sakurafubuki.yume.core.database.dao.WebDavDirectoryItemDao
+import com.sakurafubuki.yume.core.database.dao.WebDavFolderMetadataDao
 import com.sakurafubuki.yume.core.database.dao.WebDavServerDao
 import com.sakurafubuki.yume.core.database.dao.WebDavVideoMetadataDao
 import com.sakurafubuki.yume.core.database.entities.AudioStreamInfoEntity
@@ -19,8 +19,8 @@ import com.sakurafubuki.yume.core.database.entities.MediumEntity
 import com.sakurafubuki.yume.core.database.entities.MediumStateEntity
 import com.sakurafubuki.yume.core.database.entities.SubtitleStreamInfoEntity
 import com.sakurafubuki.yume.core.database.entities.VideoStreamInfoEntity
-import com.sakurafubuki.yume.core.database.entities.WebDavFolderMetadataEntity
 import com.sakurafubuki.yume.core.database.entities.WebDavDirectoryItemEntity
+import com.sakurafubuki.yume.core.database.entities.WebDavFolderMetadataEntity
 import com.sakurafubuki.yume.core.database.entities.WebDavServerEntity
 import com.sakurafubuki.yume.core.database.entities.WebDavVideoMetadataEntity
 
@@ -64,7 +64,6 @@ abstract class MediaDatabase : RoomDatabase() {
 
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
-
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `media_state` (
@@ -184,7 +183,6 @@ abstract class MediaDatabase : RoomDatabase() {
 
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
-
                 db.execSQL("DROP INDEX IF EXISTS `index_media_path`")
 
                 db.execSQL(
@@ -337,13 +335,12 @@ abstract class MediaDatabase : RoomDatabase() {
 
         val MIGRATION_11_12 = object : Migration(11, 12) {
             override fun migrate(db: SupportSQLiteDatabase) {
-
                 try {
                     db.execSQL("ALTER TABLE `webdav_video_metadata` ADD COLUMN `width` INTEGER NOT NULL DEFAULT 0")
-                } catch (_: Exception) {  }
+                } catch (_: Exception) { }
                 try {
                     db.execSQL("ALTER TABLE `webdav_video_metadata` ADD COLUMN `height` INTEGER NOT NULL DEFAULT 0")
-                } catch (_: Exception) {  }
+                } catch (_: Exception) { }
             }
         }
 
@@ -351,7 +348,7 @@ abstract class MediaDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 try {
                     db.execSQL("ALTER TABLE `webdav_servers` ADD COLUMN `is_image_hosting` INTEGER NOT NULL DEFAULT 0")
-                } catch (_: Exception) {  }
+                } catch (_: Exception) { }
             }
         }
 

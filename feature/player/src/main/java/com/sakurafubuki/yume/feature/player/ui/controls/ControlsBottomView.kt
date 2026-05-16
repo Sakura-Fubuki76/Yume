@@ -23,13 +23,13 @@ import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -157,7 +157,9 @@ fun ControlsBottomView(
                     val frameIndex = spriteSheetState.getFrameIndex(seekPosition)
                     val fraction = if (mediaPresentationState.duration > 0) {
                         seekPosition.toFloat() / mediaPresentationState.duration
-                    } else 0f
+                    } else {
+                        0f
+                    }
                     ThumbnailPreview(
                         spriteSheet = sheet.bitmap,
                         metadata = sheet.metadata,

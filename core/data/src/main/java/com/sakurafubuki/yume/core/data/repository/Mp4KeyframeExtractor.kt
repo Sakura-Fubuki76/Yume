@@ -5,10 +5,9 @@ import android.graphics.BitmapFactory
 import android.graphics.Rect
 import android.media.Image
 import android.media.MediaCodec
-import android.media.MediaCodecList
 import android.media.MediaCodecInfo
+import android.media.MediaCodecList
 import android.media.MediaFormat
-
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.RandomAccessFile
@@ -31,8 +30,7 @@ class Mp4KeyframeExtractor(
     private val moovLocks = ConcurrentHashMap<String, Mutex>()
     private val moovCacheLock = Any()
     private val moovCache = object : LinkedHashMap<String, ParsedMoov>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ParsedMoov>?): Boolean =
-            size > MAX_MOOV_CACHE_ENTRIES
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ParsedMoov>?): Boolean = size > MAX_MOOV_CACHE_ENTRIES
     }
 
     suspend fun extractKeyframe(
@@ -52,15 +50,19 @@ class Mp4KeyframeExtractor(
         val moovInfo = parsedMoov.moovInfo
             ?: return@withContext null.also { log { "FAIL: could not parse moov atom" } }
 
-        log { "PARSED: codec=${moovInfo.codecType} ${moovInfo.width}x${moovInfo.height} " +
-            "timescale=${moovInfo.timescale} duration=${moovInfo.duration} " +
-            "keyframes=${moovInfo.keyframes.size}" }
+        log {
+            "PARSED: codec=${moovInfo.codecType} ${moovInfo.width}x${moovInfo.height} " +
+                "timescale=${moovInfo.timescale} duration=${moovInfo.duration} " +
+                "keyframes=${moovInfo.keyframes.size}"
+        }
 
         val targetKeyframe = selectKeyframe(moovInfo, targetPercent)
             ?: return@withContext null.also { log { "FAIL: no keyframe near ${(targetPercent * 100).toInt()}%" } }
 
-        log { "SELECTED: kfIdx=${targetKeyframe.sampleIndex} timeMs=${targetKeyframe.timeMs} " +
-            "offset=${targetKeyframe.byteOffset} size=${targetKeyframe.byteSize}" }
+        log {
+            "SELECTED: kfIdx=${targetKeyframe.sampleIndex} timeMs=${targetKeyframe.timeMs} " +
+                "offset=${targetKeyframe.byteOffset} size=${targetKeyframe.byteSize}"
+        }
 
         val keyframeData = httpRange(url, targetKeyframe.byteOffset, targetKeyframe.byteSize)
             ?: return@withContext null.also { log { "FAIL: could not download keyframe data" } }
@@ -149,11 +151,14 @@ class Mp4KeyframeExtractor(
             putCachedMoov(cacheKey, parsed)
 
             if (moovInfo != null && moovInfo.keyframes.isNotEmpty()) {
-                MoovIndexCache.put(url, MoovIndexCache.Entry(
-                    keyframes = moovInfo.keyframes,
-                    contentLength = contentLength,
-                    durationMs = durationMs,
-                ))
+                MoovIndexCache.put(
+                    url,
+                    MoovIndexCache.Entry(
+                        keyframes = moovInfo.keyframes,
+                        contentLength = contentLength,
+                        durationMs = durationMs,
+                    ),
+                )
             }
             log { "MOOV cache store: bytes=${parsed.moovByteSize} duration=${parsed.durationMs ?: 0}" }
             parsed
@@ -184,28 +189,29 @@ class Mp4KeyframeExtractor(
         )
         putCachedMoov(filePath, parsed)
         if (moovInfo != null && moovInfo.keyframes.isNotEmpty()) {
-            MoovIndexCache.put(filePath, MoovIndexCache.Entry(
-                keyframes = moovInfo.keyframes,
-                contentLength = fileSize,
-                durationMs = durationMs,
-            ))
+            MoovIndexCache.put(
+                filePath,
+                MoovIndexCache.Entry(
+                    keyframes = moovInfo.keyframes,
+                    contentLength = fileSize,
+                    durationMs = durationMs,
+                ),
+            )
         }
         log { "MOOV file cache store: bytes=${parsed.moovByteSize} duration=${parsed.durationMs ?: 0}" }
         return parsed
     }
 
-    internal fun readFileRange(filePath: String, start: Long, size: Int): ByteArray? {
-        return try {
-            RandomAccessFile(filePath, "r").use { raf ->
-                raf.seek(start)
-                val buf = ByteArray(size)
-                raf.readFully(buf)
-                buf
-            }
-        } catch (e: Exception) {
-            log { "readFileRange error: ${e.message}" }
-            null
+    internal fun readFileRange(filePath: String, start: Long, size: Int): ByteArray? = try {
+        RandomAccessFile(filePath, "r").use { raf ->
+            raf.seek(start)
+            val buf = ByteArray(size)
+            raf.readFully(buf)
+            buf
         }
+    } catch (e: Exception) {
+        log { "readFileRange error: ${e.message}" }
+        null
     }
 
     private fun downloadMoovAtomFromFile(filePath: String, fileSize: Long): MoovData? {
@@ -244,8 +250,7 @@ class Mp4KeyframeExtractor(
             .toString()
     }
 
-    private fun getCachedMoov(url: String): ParsedMoov? =
-        synchronized(moovCacheLock) { moovCache[url] }
+    private fun getCachedMoov(url: String): ParsedMoov? = synchronized(moovCacheLock) { moovCache[url] }
 
     private fun putCachedMoov(url: String, parsedMoov: ParsedMoov) {
         synchronized(moovCacheLock) {
@@ -254,7 +259,6 @@ class Mp4KeyframeExtractor(
     }
 
     private fun httpHead(url: String): Long? {
-
         ContentLengthCache.get(url)?.let { return it }
 
         return try {
@@ -434,7 +438,6 @@ class Mp4KeyframeExtractor(
 
         var offset = startOffset
         while (offset + 8 <= endOffset && offset + 8 <= data.size) {
-
             if (offset + 8 > data.size) break
             val atomSize = readInt32BE(data, offset)
             if (atomSize < 8) break
@@ -562,7 +565,8 @@ class Mp4KeyframeExtractor(
 
             val mdiaResult = findAtom(data, trakDataStart, trakEnd, "mdia") ?: run {
                 log { "  trak: skipped (no mdia)" }
-                offset = trakEnd; continue
+                offset = trakEnd
+                continue
             }
             val (mdiaOff, mdiaSize) = mdiaResult
             val mdiaEnd = minOf(mdiaOff + mdiaSize, trakEnd)
@@ -596,30 +600,43 @@ class Mp4KeyframeExtractor(
                 val mdhdVersion = data[mdhdOff + 8].toInt() and 0xFF
                 val mdhdTimescaleOffset = if (mdhdVersion == 1) mdhdOff + 28 else mdhdOff + 20
                 if (mdhdTimescaleOffset + 4 <= data.size) readInt32BE(data, mdhdTimescaleOffset) else 0
-            } else mvhdTimescale
+            } else {
+                mvhdTimescale
+            }
 
             val minfResult = findAtom(data, mdiaDataStart, mdiaEnd, "minf") ?: run {
-                offset = trakEnd; continue
+                offset = trakEnd
+                continue
             }
             val (minfOff, minfSize) = minfResult
             val minfEnd = minOf(minfOff + minfSize, mdiaEnd)
             val minfDataStart = minfOff + 8
 
             val stblResult = findAtom(data, minfDataStart, minfEnd, "stbl") ?: run {
-                offset = trakEnd; continue
+                offset = trakEnd
+                continue
             }
             val (stblOff, stblSize) = stblResult
             val stblEnd = minOf(stblOff + stblSize, minfEnd)
             val stblDataStart = stblOff + 8
 
             val stsdResult = findAtom(data, stblDataStart, stblEnd, "stsd")
-            if (stsdResult == null) { offset = trakEnd; continue }
+            if (stsdResult == null) {
+                offset = trakEnd
+                continue
+            }
             val (stsdOff, _) = stsdResult
 
             val entryCount = readInt32BE(data, stsdOff + 12)
-            if (entryCount < 1) { offset = trakEnd; continue }
+            if (entryCount < 1) {
+                offset = trakEnd
+                continue
+            }
             val entryOff = stsdOff + 16
-            if (entryOff + 86 > data.size) { offset = trakEnd; continue }
+            if (entryOff + 86 > data.size) {
+                offset = trakEnd
+                continue
+            }
 
             val entrySize = readInt32BE(data, entryOff)
             if (entrySize < 86 || entryOff + entrySize > data.size) {
@@ -630,7 +647,7 @@ class Mp4KeyframeExtractor(
             val format = String(data, entryOff + 4, 4, Charsets.US_ASCII)
             val width = ((data[entryOff + 32].toInt() and 0xFF) shl 8) or (data[entryOff + 33].toInt() and 0xFF)
             val height = ((data[entryOff + 34].toInt() and 0xFF) shl 8) or (data[entryOff + 35].toInt() and 0xFF)
-            log { "  stsd: format=$format ${width}x${height} entrySize=$entrySize" }
+            log { "  stsd: format=$format ${width}x$height entrySize=$entrySize" }
 
             var codecConfig: CodecConfig? = null
             val boxStart = entryOff + 86
@@ -671,7 +688,6 @@ class Mp4KeyframeExtractor(
                 }
                 log { "  stss: ${keyframeIndices.size} keyframes" }
             } else {
-
                 log { "  stss: not found (all frames are keyframes)" }
             }
 
@@ -682,10 +698,12 @@ class Mp4KeyframeExtractor(
                 val (sttsOff, _) = sttsRes
                 val sttsCount = readInt32BE(data, sttsOff + 12)
                 for (i in 0 until sttsCount) {
-                    sttsEntries.add(SttsEntry(
-                        sampleCount = readInt32BE(data, sttsOff + 16 + i * 8),
-                        sampleDelta = readInt32BE(data, sttsOff + 20 + i * 8),
-                    ))
+                    sttsEntries.add(
+                        SttsEntry(
+                            sampleCount = readInt32BE(data, sttsOff + 16 + i * 8),
+                            sampleDelta = readInt32BE(data, sttsOff + 20 + i * 8),
+                        ),
+                    )
                 }
             }
             if (sttsEntries.isEmpty()) {
@@ -701,11 +719,13 @@ class Mp4KeyframeExtractor(
                 val (stscOff, _) = stscRes
                 val stscCount = readInt32BE(data, stscOff + 12)
                 for (i in 0 until stscCount) {
-                    stscEntries.add(StscEntry(
-                        firstChunk = readInt32BE(data, stscOff + 16 + i * 12),
-                        samplesPerChunk = readInt32BE(data, stscOff + 20 + i * 12),
-                        sampleDescIndex = readInt32BE(data, stscOff + 24 + i * 12),
-                    ))
+                    stscEntries.add(
+                        StscEntry(
+                            firstChunk = readInt32BE(data, stscOff + 16 + i * 12),
+                            samplesPerChunk = readInt32BE(data, stscOff + 20 + i * 12),
+                            sampleDescIndex = readInt32BE(data, stscOff + 24 + i * 12),
+                        ),
+                    )
                 }
             }
             if (stscEntries.isEmpty()) {
@@ -715,7 +735,10 @@ class Mp4KeyframeExtractor(
             }
 
             val stszRes = findAtom(data, stblDataStart, stblEnd, "stsz")
-            if (stszRes == null) { offset = trakEnd; continue }
+            if (stszRes == null) {
+                offset = trakEnd
+                continue
+            }
             val (stszOff, _) = stszRes
             val defaultSampleSize = readInt32BE(data, stszOff + 12)
             val sampleCount = readInt32BE(data, stszOff + 16)
@@ -725,7 +748,6 @@ class Mp4KeyframeExtractor(
                 continue
             }
             val sampleSizes = if (defaultSampleSize != 0) {
-
                 IntArray(sampleCount) { defaultSampleSize }
             } else {
                 IntArray(sampleCount) { i -> readInt32BE(data, stszOff + 20 + i * 4) }
@@ -734,7 +756,10 @@ class Mp4KeyframeExtractor(
             val co64Result = findAtom(data, stblDataStart, stblEnd, "co64")
             val stcoResult = findAtom(data, stblDataStart, stblEnd, "stco")
             val coResult = co64Result ?: stcoResult
-            if (coResult == null) { offset = trakEnd; continue }
+            if (coResult == null) {
+                offset = trakEnd
+                continue
+            }
             val coOff = coResult.first
             val coType = if (co64Result != null) "co64" else "stco"
             val chunkCount = readInt32BE(data, coOff + 12)
@@ -796,10 +821,11 @@ class Mp4KeyframeExtractor(
                             byteOffset = sampleOffsets[si],
                             byteSize = sampleSizes[si],
                         )
-                    } else null
+                    } else {
+                        null
+                    }
                 }
             } else {
-
                 sampleTimes.indices.mapNotNull { si ->
                     KeyframeEntry(
                         sampleIndex = si + 1,
@@ -812,7 +838,13 @@ class Mp4KeyframeExtractor(
 
             return MoovInfo(
                 timescale = timescale,
-                duration = if (mediaTime > 0) mediaTime else if (mvhdTimescale == timescale) mvhdDuration else 0L,
+                duration = if (mediaTime > 0) {
+                    mediaTime
+                } else if (mvhdTimescale == timescale) {
+                    mvhdDuration
+                } else {
+                    0L
+                },
                 codecType = codec.mime,
                 width = width,
                 height = height,
@@ -932,43 +964,41 @@ class Mp4KeyframeExtractor(
         return moovInfo.keyframes.minByOrNull { kotlin.math.abs(it.timeMs - targetTimeMs) }
     }
 
-    private fun MoovInfo.durationMs(): Long? =
-        if (timescale > 0 && duration > 0L) {
-            (duration * 1000L / timescale).takeIf { it > 0L }
-        } else {
+    private fun MoovInfo.durationMs(): Long? = if (timescale > 0 && duration > 0L) {
+        (duration * 1000L / timescale).takeIf { it > 0L }
+    } else {
+        null
+    }
+
+    internal suspend fun decodeKeyframe(moovInfo: MoovInfo, keyframeData: ByteArray): Bitmap? = withContext(Dispatchers.IO) {
+        try {
+            val mime = moovInfo.codecType
+            val codecName = findBestDecoderForMime(mime)
+                ?: return@withContext null.also { log { "DECODE: no codec found for $mime" } }
+
+            log { "DECODE: using codec=$codecName for $mime" }
+
+            val format = MediaFormat.createVideoFormat(mime, moovInfo.width, moovInfo.height)
+            configureCodecSpecificData(format, moovInfo)
+
+            val inputData = prepareDecoderInput(moovInfo, keyframeData)
+                ?: return@withContext null.also { log { "DECODE: failed to prepare input data" } }
+
+            val codec = MediaCodec.createByCodecName(codecName)
+            codec.configure(format, null, null, 0)
+            codec.start()
+
+            try {
+                decodeOneFrameInternal(codec, inputData, moovInfo.width, moovInfo.height, codecName)
+            } finally {
+                codec.stop()
+                codec.release()
+            }
+        } catch (e: Exception) {
+            log { "DECODE: exception: ${e.message}" }
             null
         }
-
-    internal suspend fun decodeKeyframe(moovInfo: MoovInfo, keyframeData: ByteArray): Bitmap? =
-        withContext(Dispatchers.IO) {
-            try {
-                val mime = moovInfo.codecType
-                val codecName = findBestDecoderForMime(mime)
-                    ?: return@withContext null.also { log { "DECODE: no codec found for $mime" } }
-
-                log { "DECODE: using codec=$codecName for $mime" }
-
-                val format = MediaFormat.createVideoFormat(mime, moovInfo.width, moovInfo.height)
-                configureCodecSpecificData(format, moovInfo)
-
-                val inputData = prepareDecoderInput(moovInfo, keyframeData)
-                    ?: return@withContext null.also { log { "DECODE: failed to prepare input data" } }
-
-                val codec = MediaCodec.createByCodecName(codecName)
-                codec.configure(format, null, null, 0)
-                codec.start()
-
-                try {
-                    decodeOneFrameInternal(codec, inputData, moovInfo.width, moovInfo.height, codecName)
-                } finally {
-                    codec.stop()
-                    codec.release()
-                }
-            } catch (e: Exception) {
-                log { "DECODE: exception: ${e.message}" }
-                null
-            }
-        }
+    }
 
     internal fun decodeKeyframes(moovInfo: MoovInfo, keyframeDataList: List<ByteArray>): List<Bitmap?> {
         val mime = moovInfo.codecType
@@ -1133,7 +1163,9 @@ class Mp4KeyframeExtractor(
             val outputBuffer = codec.getOutputBuffer(outputIndex)
             if (outputBuffer != null) {
                 toBitmap(outputBuffer, info, outputFormat ?: codec.outputFormat, fallbackWidth, fallbackHeight, codecName)
-            } else null
+            } else {
+                null
+            }
         }
         codec.releaseOutputBuffer(outputIndex, false)
         return bitmap
@@ -1307,52 +1339,39 @@ class Mp4KeyframeExtractor(
         }
     }
 
-    private fun tryDecodeJpeg(data: ByteArray): Bitmap? {
-        return runCatching {
-            BitmapFactory.decodeByteArray(data, 0, data.size)
-        }.getOrNull()
+    private fun tryDecodeJpeg(data: ByteArray): Bitmap? = runCatching {
+        BitmapFactory.decodeByteArray(data, 0, data.size)
+    }.getOrNull()
+
+    private fun MediaFormat.getIntegerOrDefault(key: String, defaultValue: Int): Int = if (containsKey(key)) {
+        runCatching { getInteger(key) }.getOrDefault(defaultValue)
+    } else {
+        defaultValue
     }
 
-    private fun MediaFormat.getIntegerOrDefault(key: String, defaultValue: Int): Int {
-        return if (containsKey(key)) {
-            runCatching { getInteger(key) }.getOrDefault(defaultValue)
-        } else {
-            defaultValue
-        }
-    }
+    private fun readInt32BE(data: ByteArray, offset: Int): Int = ((data[offset].toInt() and 0xFF) shl 24) or
+        ((data[offset + 1].toInt() and 0xFF) shl 16) or
+        ((data[offset + 2].toInt() and 0xFF) shl 8) or
+        (data[offset + 3].toInt() and 0xFF)
 
-    private fun readInt32BE(data: ByteArray, offset: Int): Int {
-        return ((data[offset].toInt() and 0xFF) shl 24) or
-            ((data[offset + 1].toInt() and 0xFF) shl 16) or
-            ((data[offset + 2].toInt() and 0xFF) shl 8) or
-            (data[offset + 3].toInt() and 0xFF)
-    }
+    private fun readUInt16BE(data: ByteArray, offset: Int): Int = ((data[offset].toInt() and 0xFF) shl 8) or
+        (data[offset + 1].toInt() and 0xFF)
 
-    private fun readUInt16BE(data: ByteArray, offset: Int): Int {
-        return ((data[offset].toInt() and 0xFF) shl 8) or
-            (data[offset + 1].toInt() and 0xFF)
-    }
+    private fun readUInt32BE(data: ByteArray, offset: Int): Long = readInt32BE(data, offset).toLong() and 0xFFFFFFFFL
 
-    private fun readUInt32BE(data: ByteArray, offset: Int): Long {
-        return readInt32BE(data, offset).toLong() and 0xFFFFFFFFL
-    }
-
-    private fun readInt64BE(data: ByteArray, offset: Int): Long {
-        return ((data[offset].toLong() and 0xFF) shl 56) or
-            ((data[offset + 1].toLong() and 0xFF) shl 48) or
-            ((data[offset + 2].toLong() and 0xFF) shl 40) or
-            ((data[offset + 3].toLong() and 0xFF) shl 32) or
-            ((data[offset + 4].toLong() and 0xFF) shl 24) or
-            ((data[offset + 5].toLong() and 0xFF) shl 16) or
-            ((data[offset + 6].toLong() and 0xFF) shl 8) or
-            (data[offset + 7].toLong() and 0xFF)
-    }
+    private fun readInt64BE(data: ByteArray, offset: Int): Long = ((data[offset].toLong() and 0xFF) shl 56) or
+        ((data[offset + 1].toLong() and 0xFF) shl 48) or
+        ((data[offset + 2].toLong() and 0xFF) shl 40) or
+        ((data[offset + 3].toLong() and 0xFF) shl 32) or
+        ((data[offset + 4].toLong() and 0xFF) shl 24) or
+        ((data[offset + 5].toLong() and 0xFF) shl 16) or
+        ((data[offset + 6].toLong() and 0xFF) shl 8) or
+        (data[offset + 7].toLong() and 0xFF)
 
     @Suppress("NOTHING_TO_INLINE")
-    private inline fun log(msg: () -> String) {  }
+    private inline fun log(msg: () -> String) { }
 
     companion object {
         private const val MAX_MOOV_CACHE_ENTRIES = 32
     }
-
 }

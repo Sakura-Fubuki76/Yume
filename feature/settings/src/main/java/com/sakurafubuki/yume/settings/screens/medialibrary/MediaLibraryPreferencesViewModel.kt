@@ -3,8 +3,6 @@ package com.sakurafubuki.yume.settings.screens.medialibrary
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.sakurafubuki.yume.core.cache.ImageCacheManager
 import com.sakurafubuki.yume.core.common.Dispatcher
 import com.sakurafubuki.yume.core.common.NextDispatchers
@@ -16,6 +14,8 @@ import com.sakurafubuki.yume.core.model.ApplicationPreferences
 import com.sakurafubuki.yume.core.model.CacheExpiry
 import com.sakurafubuki.yume.core.model.CdnNode
 import com.sakurafubuki.yume.core.model.WebDavServer
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.FlowPreview

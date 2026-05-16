@@ -12,10 +12,10 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.sakurafubuki.yume.core.common.extensions.deleteMedia
 import com.sakurafubuki.yume.core.common.extensions.getPath
 import com.sakurafubuki.yume.core.common.extensions.updateMedia
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton

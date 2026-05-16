@@ -1,15 +1,15 @@
 package com.sakurafubuki.yume.core.media
 
-import dagger.Binds
-import dagger.Module
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
 import com.sakurafubuki.yume.core.media.services.LocalMediaService
 import com.sakurafubuki.yume.core.media.services.MediaService
 import com.sakurafubuki.yume.core.media.sync.LocalMediaInfoSynchronizer
 import com.sakurafubuki.yume.core.media.sync.LocalMediaSynchronizer
 import com.sakurafubuki.yume.core.media.sync.MediaInfoSynchronizer
 import com.sakurafubuki.yume.core.media.sync.MediaSynchronizer
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Module

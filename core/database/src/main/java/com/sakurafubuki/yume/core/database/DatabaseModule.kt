@@ -2,13 +2,13 @@ package com.sakurafubuki.yume.core.database
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.RoomDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
-import androidx.room.RoomDatabase
 
 @Module
 @InstallIn(SingletonComponent::class)

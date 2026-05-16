@@ -9,13 +9,13 @@ import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.sakurafubuki.yume.core.cache.ImageCacheManager
 import com.sakurafubuki.yume.core.common.di.ApplicationScope
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
 import com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy
 import com.sakurafubuki.yume.core.model.WebDavServer
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
@@ -93,7 +93,13 @@ class AppImageLoaderFactory @Inject constructor(
                 webDavServersById = servers.associateBy { it.id }
                 serverIndex = servers.groupBy { server ->
                     val uri = Uri.parse(server.url)
-                    val port = if (uri.port != -1) uri.port else if (uri.scheme.equals("https", ignoreCase = true)) 443 else 80
+                    val port = if (uri.port != -1) {
+                        uri.port
+                    } else if (uri.scheme.equals("https", ignoreCase = true)) {
+                        443
+                    } else {
+                        80
+                    }
                     "${uri.scheme}://${uri.host}:$port"
                 }
             }
@@ -211,9 +217,7 @@ class AppImageLoaderFactory @Inject constructor(
         )
     }
 
-    private fun isOpenListSignedResource(url: HttpUrl): Boolean {
-        return url.queryParameter("sign") != null
-    }
+    private fun isOpenListSignedResource(url: HttpUrl): Boolean = url.queryParameter("sign") != null
 
     private fun findMatchingWebDavServer(url: HttpUrl): WebDavServer? {
         val port = if (url.port != -1) url.port else defaultPort(url.scheme)

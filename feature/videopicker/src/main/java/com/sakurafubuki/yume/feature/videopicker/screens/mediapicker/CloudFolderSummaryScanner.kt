@@ -311,26 +311,19 @@ class CloudFolderSummaryScanner @Inject constructor(
     }
 }
 
-internal fun WebDavMediaItem.isCloudDisplayVideoFile(): Boolean =
-    !isDirectory && isVideo && size > 0L
+internal fun WebDavMediaItem.isCloudDisplayVideoFile(): Boolean = !isDirectory && isVideo && size > 0L
 
-internal fun Iterable<WebDavMediaItem>.cloudDisplayVideoFiles(): List<WebDavMediaItem> =
-    filter { it.isCloudDisplayVideoFile() }
+internal fun Iterable<WebDavMediaItem>.cloudDisplayVideoFiles(): List<WebDavMediaItem> = filter { it.isCloudDisplayVideoFile() }
 
-internal fun Sequence<WebDavMediaItem>.cloudDisplayVideoFiles(): Sequence<WebDavMediaItem> =
-    filter { it.isCloudDisplayVideoFile() }
+internal fun Sequence<WebDavMediaItem>.cloudDisplayVideoFiles(): Sequence<WebDavMediaItem> = filter { it.isCloudDisplayVideoFile() }
 
-internal fun Iterable<WebDavMediaItem>.cloudDirectoryItems(): List<WebDavMediaItem> =
-    filter { it.isDirectory }
+internal fun Iterable<WebDavMediaItem>.cloudDirectoryItems(): List<WebDavMediaItem> = filter { it.isDirectory }
 
-internal fun Sequence<WebDavMediaItem>.cloudDirectoryItems(): Sequence<WebDavMediaItem> =
-    filter { it.isDirectory }
+internal fun Sequence<WebDavMediaItem>.cloudDirectoryItems(): Sequence<WebDavMediaItem> = filter { it.isDirectory }
 
-internal fun List<WebDavMediaItem>.hasKnownCloudDisplayContent(): Boolean =
-    cloudDisplayVideoFiles().isNotEmpty() || cloudDirectoryItems().isNotEmpty()
+internal fun List<WebDavMediaItem>.hasKnownCloudDisplayContent(): Boolean = cloudDisplayVideoFiles().isNotEmpty() || cloudDirectoryItems().isNotEmpty()
 
-internal fun isKnownEmptyCloudFolder(metadata: com.sakurafubuki.yume.core.model.CloudFolderMetadata?): Boolean =
-    metadata != null && metadata.videoCount == 0 && metadata.mediaCount == 0 && metadata.folderCount == 0
+internal fun isKnownEmptyCloudFolder(metadata: com.sakurafubuki.yume.core.model.CloudFolderMetadata?): Boolean = metadata != null && metadata.videoCount == 0 && metadata.mediaCount == 0 && metadata.folderCount == 0
 
 private fun FsSearchItem.isIndexedVideoFile(): Boolean {
     if (is_dir || size <= 0L) return false

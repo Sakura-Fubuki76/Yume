@@ -2,23 +2,24 @@ package com.sakurafubuki.yume.feature.player
 
 import android.graphics.Rect
 import androidx.annotation.OptIn
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
+import androidx.core.net.toUri
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
@@ -26,7 +27,11 @@ import androidx.media3.ui.compose.PlayerSurface
 import androidx.media3.ui.compose.SURFACE_TYPE_SURFACE_VIEW
 import androidx.media3.ui.compose.modifiers.resizeWithContentScale
 import androidx.media3.ui.compose.state.rememberPresentationState
+import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.model.VideoContentScale
+import com.sakurafubuki.yume.feature.player.ass.AssSubtitleState
+import com.sakurafubuki.yume.feature.player.ass.AssSubtitleView
+import com.sakurafubuki.yume.feature.player.ass.rememberAssSubtitleState
 import com.sakurafubuki.yume.feature.player.extensions.toContentScale
 import com.sakurafubuki.yume.feature.player.state.ControlsVisibilityState
 import com.sakurafubuki.yume.feature.player.state.PictureInPictureState
@@ -38,12 +43,7 @@ import com.sakurafubuki.yume.feature.player.ui.PlayerGestures
 import com.sakurafubuki.yume.feature.player.ui.ShutterView
 import com.sakurafubuki.yume.feature.player.ui.SubtitleConfiguration
 import com.sakurafubuki.yume.feature.player.ui.SubtitleView
-import com.sakurafubuki.yume.feature.player.ass.AssSubtitleState
-import com.sakurafubuki.yume.feature.player.ass.rememberAssSubtitleState
-import com.sakurafubuki.yume.feature.player.ass.AssSubtitleView
-import com.sakurafubuki.yume.core.common.Logger
 import kotlin.math.roundToInt
-import androidx.core.net.toUri
 
 private data class LetterboxedRect(
     val width: Int,
@@ -139,8 +139,10 @@ fun PlayerContentFrame(
                 val bounds = coords.boundsInWindow()
                 pictureInPictureState.setVideoViewRect(
                     Rect(
-                        bounds.left.toInt(), bounds.top.toInt(),
-                        bounds.right.toInt(), bounds.bottom.toInt(),
+                        bounds.left.toInt(),
+                        bounds.top.toInt(),
+                        bounds.right.toInt(),
+                        bounds.bottom.toInt(),
                     ),
                 )
                 containerWidthPx = coords.size.width
@@ -189,9 +191,12 @@ fun PlayerContentFrame(
         val uri = try {
             val candidate = realId.toUri()
             if (candidate.scheme != null) candidate else null
-        } catch (_: Exception) { null }
-        val hasAssExt = uri?.path?.let { it.endsWith(".ass") || it.endsWith(".ssa") } == true
-            || realId.endsWith(".ass", ignoreCase = true) || realId.endsWith(".ssa", ignoreCase = true)
+        } catch (_: Exception) {
+            null
+        }
+        val hasAssExt = uri?.path?.let { it.endsWith(".ass") || it.endsWith(".ssa") } == true ||
+            realId.endsWith(".ass", ignoreCase = true) ||
+            realId.endsWith(".ssa", ignoreCase = true)
         Triple(uri, isAss || hasAssExt, rawId)
     }
 
@@ -201,9 +206,9 @@ fun PlayerContentFrame(
     Logger.d(
         "PlayerContentFrame",
         "ASS detection: isAssSubtitle=$isAssSubtitle, " +
-                "trackId=${assSubtitleInfo?.third}, " +
-                "mimeType=${player.currentTracks.groups.firstOrNull { it.type == androidx.media3.common.C.TRACK_TYPE_TEXT && it.isSelected }?.getTrackFormat(0)?.sampleMimeType}, " +
-                "uri=${assSubtitleInfo?.first}",
+            "trackId=${assSubtitleInfo?.third}, " +
+            "mimeType=${player.currentTracks.groups.firstOrNull { it.type == androidx.media3.common.C.TRACK_TYPE_TEXT && it.isSelected }?.getTrackFormat(0)?.sampleMimeType}, " +
+            "uri=${assSubtitleInfo?.first}",
     )
 
     if (!isAssSubtitle) {
@@ -221,10 +226,11 @@ fun PlayerContentFrame(
                 Logger.d(
                     "PlayerContentFrame",
                     "videoFormat: ${fmt.width}x${fmt.height}, " +
-                            "codecs=${fmt.codecs}, sampleMime=${fmt.sampleMimeType}",
+                        "codecs=${fmt.codecs}, sampleMime=${fmt.sampleMimeType}",
                 )
-                if (fmt.width > 0 && fmt.height > 0)
+                if (fmt.width > 0 && fmt.height > 0) {
                     return VideoSize(fmt.width, fmt.height, fmt.rotationDegrees, fmt.pixelWidthHeightRatio)
+                }
             }
         }
         Logger.d("PlayerContentFrame", "videoSizeFromTracks: no selected video track found")
@@ -232,13 +238,17 @@ fun PlayerContentFrame(
     }
 
     val videoPixelSize by produceState(VideoSize.UNKNOWN) {
-
         val initial = player.videoSize
-        value = if (initial.width > 0 && initial.height > 0) initial
-                else videoSizeFromTracks(player)
+        value = if (initial.width > 0 && initial.height > 0) {
+            initial
+        } else {
+            videoSizeFromTracks(player)
+        }
 
         val listener = object : Player.Listener {
-            override fun onVideoSizeChanged(videoSize: VideoSize) { value = videoSize }
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                value = videoSize
+            }
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
                 val trackSize = videoSizeFromTracks(player)
                 if (trackSize.width > 0 && trackSize.height > 0) value = trackSize
@@ -260,39 +270,47 @@ fun PlayerContentFrame(
     )
 
     LaunchedEffect(
-        displayRect.width, displayRect.height,
-        surfaceWidthPx, surfaceHeightPx,
+        displayRect.width,
+        displayRect.height,
+        surfaceWidthPx,
+        surfaceHeightPx,
     ) {
         if (displayRect.width > 0 && displayRect.height > 0) {
             Logger.d(
                 "PlayerContentFrame",
                 "setFrameSize from letterboxed rect: ${displayRect.width}x${displayRect.height} " +
-                        "(container=${containerWidthPx}x${containerHeightPx}, " +
-                        "video=${videoStorageW}x${videoStorageH})",
+                    "(container=${containerWidthPx}x$containerHeightPx, " +
+                    "video=${videoStorageW}x$videoStorageH)",
             )
             assState.setFrameSize(displayRect.width, displayRect.height)
         } else if (surfaceWidthPx > 0 && surfaceHeightPx > 0) {
             Logger.d(
                 "PlayerContentFrame",
-                "setFrameSize from surface fallback: ${surfaceWidthPx}x${surfaceHeightPx} " +
-                        "(container=${containerWidthPx}x${containerHeightPx}, " +
-                        "video=${videoStorageW}x${videoStorageH})",
+                "setFrameSize from surface fallback: ${surfaceWidthPx}x$surfaceHeightPx " +
+                    "(container=${containerWidthPx}x$containerHeightPx, " +
+                    "video=${videoStorageW}x$videoStorageH)",
             )
             assState.setFrameSize(surfaceWidthPx, surfaceHeightPx)
         }
     }
 
     val hasDisplayArea = (displayRect.width > 0 && displayRect.height > 0) ||
-                         (surfaceWidthPx > 0 && surfaceHeightPx > 0)
+        (surfaceWidthPx > 0 && surfaceHeightPx > 0)
     if (isAssSubtitle && hasDisplayArea) {
         val useRect = displayRect.width > 0 && displayRect.height > 0
         val w = if (useRect) displayRect.width else surfaceWidthPx
         val h = if (useRect) displayRect.height else surfaceHeightPx
 
-        val ox = if (useRect) displayRect.offsetX.toInt()
-                 else surfaceOffsetXPx.toInt()
-        val oy = if (useRect) displayRect.offsetY.toInt()
-                 else surfaceOffsetYPx.toInt()
+        val ox = if (useRect) {
+            displayRect.offsetX.toInt()
+        } else {
+            surfaceOffsetXPx.toInt()
+        }
+        val oy = if (useRect) {
+            displayRect.offsetY.toInt()
+        } else {
+            surfaceOffsetYPx.toInt()
+        }
         val density = LocalDensity.current
         val widthDp = with(density) { w.toDp() }
         val heightDp = with(density) { h.toDp() }

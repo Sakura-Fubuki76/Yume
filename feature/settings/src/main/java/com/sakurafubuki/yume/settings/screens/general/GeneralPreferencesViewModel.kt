@@ -3,12 +3,12 @@ package com.sakurafubuki.yume.settings.screens.general
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.sakurafubuki.yume.core.cache.ImageCacheManager
 import com.sakurafubuki.yume.core.common.Dispatcher
 import com.sakurafubuki.yume.core.common.NextDispatchers
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow

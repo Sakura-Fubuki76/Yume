@@ -1,13 +1,13 @@
 package com.sakurafubuki.yume.settings.screens.medialibrary
 
 import android.net.Uri
+import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import android.os.Build
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -43,11 +44,10 @@ import com.sakurafubuki.yume.core.ui.R
 import com.sakurafubuki.yume.core.ui.components.ClickablePreferenceItem
 import com.sakurafubuki.yume.core.ui.components.ListSectionTitle
 import com.sakurafubuki.yume.core.ui.components.NextTopAppBar
-import com.sakurafubuki.yume.core.ui.composables.PermissionMissingView
 import com.sakurafubuki.yume.core.ui.components.PreferenceSwitch
+import com.sakurafubuki.yume.core.ui.composables.PermissionMissingView
 import com.sakurafubuki.yume.core.ui.designsystem.NextIcons
 import com.sakurafubuki.yume.core.ui.theme.YumeTheme
-import androidx.core.net.toUri
 
 @Composable
 fun MediaLibraryPreferencesScreen(
@@ -256,10 +256,12 @@ private fun AddWebDavDialog(
     val hasValidPort = normalizedPort.isEmpty() || normalizedPort.toIntOrNull()?.let { it in 1..65535 } == true
 
     val isBearerAuth = username.trim().startsWith("Bearer ", ignoreCase = true) ||
-            username.trim().equals("bearer", ignoreCase = true)
-    val canConfirm = name.isNotBlank() && sanitizedHost.isNotBlank() && hasValidPort &&
-            (username.isNotBlank() || isBearerAuth) &&
-            (password.isNotBlank() || isBearerAuth)
+        username.trim().equals("bearer", ignoreCase = true)
+    val canConfirm = name.isNotBlank() &&
+        sanitizedHost.isNotBlank() &&
+        hasValidPort &&
+        (username.isNotBlank() || isBearerAuth) &&
+        (password.isNotBlank() || isBearerAuth)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -368,8 +370,9 @@ private fun AddImageHostingDialog(
 
     val sanitizedUrl = url.trim()
     val parsedUrl = remember(sanitizedUrl) { runCatching { sanitizedUrl.toUri() }.getOrNull() }
-    val validUrl = parsedUrl != null && !parsedUrl.host.isNullOrBlank() &&
-            (parsedUrl.scheme == "http" || parsedUrl.scheme == "https")
+    val validUrl = parsedUrl != null &&
+        !parsedUrl.host.isNullOrBlank() &&
+        (parsedUrl.scheme == "http" || parsedUrl.scheme == "https")
     val canConfirm = token.isNotBlank() && validUrl
 
     AlertDialog(

@@ -1,7 +1,7 @@
 package com.sakurafubuki.yume.core.data.repository
 
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.LinkedHashMap
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 object MoovIndexCache {
 
@@ -15,8 +15,7 @@ object MoovIndexCache {
 
     private val lock = Any()
     private val entries = object : LinkedHashMap<String, Entry>(MAX_ENTRIES, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Entry>?): Boolean =
-            size > MAX_ENTRIES
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Entry>?): Boolean = size > MAX_ENTRIES
     }
 
     private fun cacheKey(url: String): String {

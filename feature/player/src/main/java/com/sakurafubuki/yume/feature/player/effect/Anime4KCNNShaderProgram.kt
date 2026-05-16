@@ -15,7 +15,7 @@ class Anime4KCNNShaderProgram(
     useHdr: Boolean,
     private val context: Context,
     private val assetPath: String,
-) : BaseGlShaderProgram(useHdr,  1) {
+) : BaseGlShaderProgram(useHdr, 1) {
 
     private var layers: List<CompiledLayer> = emptyList()
     private var passThroughProgram: GlProgram? = null
@@ -163,8 +163,8 @@ class Anime4KCNNShaderProgram(
 
         if (useHalfFloat) {
             GLES30.glTexImage2D(
-                GLES30.GL_TEXTURE_2D, 0, 0x881A , w, h, 0,
-                GLES30.GL_RGBA, 0x140B , null,
+                GLES30.GL_TEXTURE_2D, 0, 0x881A, w, h, 0,
+                GLES30.GL_RGBA, 0x140B, null,
             )
         } else {
             GLES30.glTexImage2D(
@@ -187,8 +187,11 @@ class Anime4KCNNShaderProgram(
         val fbo = fboIds[0]
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, fbo)
         GLES30.glFramebufferTexture2D(
-            GLES30.GL_FRAMEBUFFER, GLES30.GL_COLOR_ATTACHMENT0,
-            GLES30.GL_TEXTURE_2D, tex, 0,
+            GLES30.GL_FRAMEBUFFER,
+            GLES30.GL_COLOR_ATTACHMENT0,
+            GLES30.GL_TEXTURE_2D,
+            tex,
+            0,
         )
         val status = GLES30.glCheckFramebufferStatus(GLES30.GL_FRAMEBUFFER)
         if (status != GLES30.GL_FRAMEBUFFER_COMPLETE) {
@@ -307,7 +310,7 @@ class Anime4KCNNShaderProgram(
 
         returnExpr = returnExpr.replace(
             Regex("""MAIN_tex\s*\(\s*MAIN_pos\s*\)"""),
-            "texture(uInput0, vTexCoord)"
+            "texture(uInput0, vTexCoord)",
         )
         sb.appendLine("    fragColor = $returnExpr;")
         sb.appendLine("}")
@@ -316,7 +319,6 @@ class Anime4KCNNShaderProgram(
     }
 
     private fun transformMacro(macro: String, inputNames: List<String>): String {
-
         var result = macro
 
         result = result.replace(Regex("""(\w+)_texOff\s*\(\s*vec2\s*\(\s*x_off\s*,\s*y_off\s*\)\s*\)""")) { match ->

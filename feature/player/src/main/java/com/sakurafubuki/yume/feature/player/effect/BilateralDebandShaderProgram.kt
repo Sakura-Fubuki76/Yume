@@ -13,7 +13,7 @@ class BilateralDebandShaderProgram(
     private val threshold: Float = 0.008f,
     private val strength: Float = 0.004f,
     private val radius: Int = 4,
-) : BaseGlShaderProgram(useHdr,  2) {
+) : BaseGlShaderProgram(useHdr, 2) {
 
     private var blurProgram: GlProgram? = null
     private var debandProgram: GlProgram? = null
@@ -147,8 +147,11 @@ class BilateralDebandShaderProgram(
         intermediateFboId = fboIds[0]
         GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, intermediateFboId)
         GLES30.glFramebufferTexture2D(
-            GLES30.GL_FRAMEBUFFER, GLES30.GL_COLOR_ATTACHMENT0,
-            GLES30.GL_TEXTURE_2D, intermediateTextureId, 0,
+            GLES30.GL_FRAMEBUFFER,
+            GLES30.GL_COLOR_ATTACHMENT0,
+            GLES30.GL_TEXTURE_2D,
+            intermediateTextureId,
+            0,
         )
         val fboStatus = GLES30.glCheckFramebufferStatus(GLES30.GL_FRAMEBUFFER)
         if (fboStatus != GLES30.GL_FRAMEBUFFER_COMPLETE) {

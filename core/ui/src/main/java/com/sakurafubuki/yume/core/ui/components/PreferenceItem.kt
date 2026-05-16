@@ -19,8 +19,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.sakurafubuki.yume.core.ui.designsystem.NextIcons
 import com.sakurafubuki.yume.core.ui.R
+import com.sakurafubuki.yume.core.ui.designsystem.NextIcons
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

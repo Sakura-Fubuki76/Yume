@@ -58,7 +58,7 @@ nextlib/ffmpeg/sources
 run_debug.bat
 
 # Prebuilt native libraries (downloaded via script)
-app/src/main/cpp/prebuilts/
+app/src/main/cpp/libass/
 
 exoplayer_internal_debug.db
 *.compose_stability

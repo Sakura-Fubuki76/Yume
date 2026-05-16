@@ -13,8 +13,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,7 +59,6 @@ import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -72,7 +71,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalLayoutDirection
-
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,12 +81,12 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.shouldShowRationale
+import com.sakurafubuki.yume.core.common.VideoThumbnailStore
 import com.sakurafubuki.yume.core.common.storagePermissions
 import com.sakurafubuki.yume.core.media.services.MediaService
 import com.sakurafubuki.yume.core.model.ApplicationPreferences
@@ -96,7 +94,6 @@ import com.sakurafubuki.yume.core.model.Folder
 import com.sakurafubuki.yume.core.model.MediaLayoutMode
 import com.sakurafubuki.yume.core.model.MediaViewMode
 import com.sakurafubuki.yume.core.model.Video
-import com.sakurafubuki.yume.core.common.VideoThumbnailStore
 import com.sakurafubuki.yume.core.ui.R
 import com.sakurafubuki.yume.core.ui.base.DataState
 import com.sakurafubuki.yume.core.ui.components.CancelButton
@@ -300,8 +297,11 @@ internal fun MediaPickerScreen(
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
-                                imageVector = if (uiState.mode == com.sakurafubuki.yume.core.model.MediaMode.CLOUD)
-                                    NextIcons.Cloud else NextIcons.Folder,
+                                imageVector = if (uiState.mode == com.sakurafubuki.yume.core.model.MediaMode.CLOUD) {
+                                    NextIcons.Cloud
+                                } else {
+                                    NextIcons.Folder
+                                },
                                 contentDescription = if (uiState.mode == com.sakurafubuki.yume.core.model.MediaMode.CLOUD) {
                                     stringResource(R.string.switch_to_local_mode)
                                 } else {
@@ -746,10 +746,13 @@ private fun CloudVideoPane(
                             VideoThumbnailStore.durationMsMap[video.uriString] = video.duration
                         }
 
-                        android.util.Log.d("BUG2_MediaPicker", "video uri=${video.uriString.take(80)} " +
-                            "duration=${video.duration}ms " +
-                            "thumb=${video.thumbnailUriString?.take(80) ?: "NULL"} " +
-                            "name=${video.nameWithExtension}")
+                        android.util.Log.d(
+                            "BUG2_MediaPicker",
+                            "video uri=${video.uriString.take(80)} " +
+                                "duration=${video.duration}ms " +
+                                "thumb=${video.thumbnailUriString?.take(80) ?: "NULL"} " +
+                                "name=${video.nameWithExtension}",
+                        )
                     }
                     android.util.Log.d("BUG2_MediaPicker", "STORE: thumbnails=${VideoThumbnailStore.thumbnailUriMap.size} durations=${VideoThumbnailStore.durationMsMap.size}")
                     MediaView(
@@ -1089,15 +1092,13 @@ private fun SelectionAction(
     }
 }
 
-private fun flattenToLeafVideoFolders(folders: List<Folder>): List<Folder> {
-    return folders.flatMap { folder ->
-        if (folder.mediaList.isNotEmpty()) {
-            listOf(folder)
-        } else if (folder.folderList.isNotEmpty()) {
-            flattenToLeafVideoFolders(folder.folderList)
-        } else {
-            emptyList()
-        }
+private fun flattenToLeafVideoFolders(folders: List<Folder>): List<Folder> = folders.flatMap { folder ->
+    if (folder.mediaList.isNotEmpty()) {
+        listOf(folder)
+    } else if (folder.folderList.isNotEmpty()) {
+        flattenToLeafVideoFolders(folder.folderList)
+    } else {
+        emptyList()
     }
 }
 

@@ -58,7 +58,6 @@ suspend fun PointerInputScope.detectCustomTransformGestures(
             val canceled = event.changes.any { it.isConsumed } || currentPointerCount != pointCount
 
             if (!canceled) {
-
                 if (!gestureStarted) {
                     gestureStarted = true
                     onGestureStart(pointer)

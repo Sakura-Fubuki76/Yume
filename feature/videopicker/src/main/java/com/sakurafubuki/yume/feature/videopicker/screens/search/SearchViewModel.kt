@@ -4,7 +4,6 @@ import android.net.Uri
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.SearchHistoryRepository
 import com.sakurafubuki.yume.core.domain.GetPopularFoldersUseCase
@@ -13,6 +12,7 @@ import com.sakurafubuki.yume.core.domain.SearchResults
 import com.sakurafubuki.yume.core.media.sync.MediaInfoSynchronizer
 import com.sakurafubuki.yume.core.model.ApplicationPreferences
 import com.sakurafubuki.yume.core.model.Folder
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview

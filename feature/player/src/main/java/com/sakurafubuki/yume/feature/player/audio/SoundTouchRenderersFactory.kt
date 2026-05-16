@@ -13,11 +13,9 @@ class SoundTouchRenderersFactory(context: Context) : NextRenderersFactory(contex
         context: Context,
         enableFloatOutput: Boolean,
         enableAudioOutputPlaybackParams: Boolean,
-    ): AudioSink {
-        return DefaultAudioSink.Builder(context)
-            .setEnableFloatOutput(enableFloatOutput)
-            .setEnableAudioOutputPlaybackParameters(false)
-            .setAudioProcessorChain(SoundTouchAudioProcessorChain())
-            .build()
-    }
+    ): AudioSink = DefaultAudioSink.Builder(context)
+        .setEnableFloatOutput(enableFloatOutput)
+        .setEnableAudioOutputPlaybackParameters(false)
+        .setAudioProcessorChain(SoundTouchAudioProcessorChain())
+        .build()
 }

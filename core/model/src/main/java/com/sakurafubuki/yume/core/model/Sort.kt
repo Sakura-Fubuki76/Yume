@@ -1,6 +1,5 @@
 package com.sakurafubuki.yume.core.model
 
-
 data class Sort(
     val by: By,
     val order: Order,

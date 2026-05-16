@@ -21,30 +21,27 @@ class MkvKeyframeExtractor(
     @Volatile
     var videoTrackNumber: Long = 0
 
-    suspend fun loadParsedMkv(url: String): Mp4KeyframeExtractor.ParsedMoov? =
-        withContext(Dispatchers.IO) {
-            val cacheKey = mkvCacheKey(url)
+    suspend fun loadParsedMkv(url: String): Mp4KeyframeExtractor.ParsedMoov? = withContext(Dispatchers.IO) {
+        val cacheKey = mkvCacheKey(url)
 
-            cache[cacheKey]?.let { return@withContext it }
+        cache[cacheKey]?.let { return@withContext it }
 
-            val lock = keyMutexes.getOrPut(cacheKey) { Mutex() }
-            lock.withLock {
+        val lock = keyMutexes.getOrPut(cacheKey) { Mutex() }
+        lock.withLock {
+            cache[cacheKey]?.let { return@withLock it }
 
-                cache[cacheKey]?.let { return@withLock it }
-
-                val parsed = doLoadParsedMkv(url, cacheKey)
-                if (parsed != null) {
-                    cache[cacheKey] = parsed
-                }
-                parsed
+            val parsed = doLoadParsedMkv(url, cacheKey)
+            if (parsed != null) {
+                cache[cacheKey] = parsed
             }
+            parsed
         }
+    }
 
     private suspend fun doLoadParsedMkv(
         url: String,
         cacheKey: String,
     ): Mp4KeyframeExtractor.ParsedMoov? {
-
         val contentLength = httpHead(url)
         Log.d(BUG4_TAG, "MKV httpHead: $contentLength for ${url.take(80)}")
         if (contentLength == null || contentLength < 4096) return null
@@ -85,7 +82,6 @@ class MkvKeyframeExtractor(
         }
 
         if (seekPositions == null) {
-
             Log.w(BUG4_TAG, "MKV: no SeekHead, trying direct Cues search...")
             return parseFromTailDirect(url, contentLength, segmentDataOff)
         }
@@ -104,10 +100,11 @@ class MkvKeyframeExtractor(
         if (tracksData == null) return null
         val tracksBodyOff = skipElementHeader(tracksData, 0)
         val (mime, width, height, codecPrivate, trackNumber) = parseTracks(
-            tracksData, tracksBodyOff
+            tracksData,
+            tracksBodyOff,
         ) ?: return null
         videoTrackNumber = trackNumber
-        Log.d(BUG4_TAG, "MKV Tracks: $mime ${width}x${height} codecPrivate=${codecPrivate?.size ?: 0} track=$trackNumber")
+        Log.d(BUG4_TAG, "MKV Tracks: $mime ${width}x$height codecPrivate=${codecPrivate?.size ?: 0} track=$trackNumber")
 
         var timecodeScaleNs = 1_000_000L
         var durationMs: Long? = null
@@ -129,7 +126,7 @@ class MkvKeyframeExtractor(
         val cuesFileOff = segmentDataOff + cuesPos
         val cuesSize = minOf(
             512 * 1024L,
-            (contentLength - cuesFileOff).coerceAtLeast(65536)
+            (contentLength - cuesFileOff).coerceAtLeast(65536),
         ).toInt()
         val cuesData = downloadRangeForOffset(url, contentLength, cuesFileOff, cuesSize)
         if (cuesData == null) return null
@@ -142,7 +139,6 @@ class MkvKeyframeExtractor(
         val codecConfig = if (codecPrivate != null && codecPrivate.isNotEmpty()) {
             parseCodecPrivate(mime, codecPrivate)
         } else {
-
             val nalSize = if (mime == "video/hevc") 4 else 4
             Mp4KeyframeExtractor.CodecConfig(mime, nalSize, emptyList())
         }
@@ -232,7 +228,6 @@ class MkvKeyframeExtractor(
         }
         len++
         if (len > 8 || offset + len > data.size) {
-
             return 0L to 1
         }
 
@@ -293,7 +288,6 @@ class MkvKeyframeExtractor(
 
         var i = start
         while (i + idBytes.size + 1 <= searchEnd) {
-
             var match = true
             for (j in idBytes.indices) {
                 if (data[i + j] != idBytes[j]) {
@@ -317,26 +311,24 @@ class MkvKeyframeExtractor(
         return null
     }
 
-    private fun ebmlIdToBytes(elementId: Long): ByteArray? {
-        return when {
-            elementId <= 0xFFL -> byteArrayOf(elementId.toByte())
-            elementId <= 0xFFFFL -> byteArrayOf(
-                ((elementId shr 8) and 0xFF).toByte(),
-                (elementId and 0xFF).toByte(),
-            )
-            elementId <= 0xFFFFFFL -> byteArrayOf(
-                ((elementId shr 16) and 0xFF).toByte(),
-                ((elementId shr 8) and 0xFF).toByte(),
-                (elementId and 0xFF).toByte(),
-            )
-            elementId <= 0xFFFFFFFFL -> byteArrayOf(
-                ((elementId shr 24) and 0xFF).toByte(),
-                ((elementId shr 16) and 0xFF).toByte(),
-                ((elementId shr 8) and 0xFF).toByte(),
-                (elementId and 0xFF).toByte(),
-            )
-            else -> null
-        }
+    private fun ebmlIdToBytes(elementId: Long): ByteArray? = when {
+        elementId <= 0xFFL -> byteArrayOf(elementId.toByte())
+        elementId <= 0xFFFFL -> byteArrayOf(
+            ((elementId shr 8) and 0xFF).toByte(),
+            (elementId and 0xFF).toByte(),
+        )
+        elementId <= 0xFFFFFFL -> byteArrayOf(
+            ((elementId shr 16) and 0xFF).toByte(),
+            ((elementId shr 8) and 0xFF).toByte(),
+            (elementId and 0xFF).toByte(),
+        )
+        elementId <= 0xFFFFFFFFL -> byteArrayOf(
+            ((elementId shr 24) and 0xFF).toByte(),
+            ((elementId shr 16) and 0xFF).toByte(),
+            ((elementId shr 8) and 0xFF).toByte(),
+            (elementId and 0xFF).toByte(),
+        )
+        else -> null
     }
 
     private fun findSegmentStart(headData: ByteArray): Pair<Long, Int>? {
@@ -344,7 +336,6 @@ class MkvKeyframeExtractor(
         while (off + 4 <= headData.size) {
             val (id, idLen) = readElementId(headData, off)
             if (id == 0x1A45DFA3L) {
-
                 val (size, sizeLen) = readVint(headData, off + idLen)
                 off += idLen + sizeLen + maxOf(size, 1).toInt()
                 continue
@@ -489,7 +480,8 @@ class MkvKeyframeExtractor(
     }
 
     private fun parseVideo(data: ByteArray, start: Int, end: Int): Pair<Int, Int> {
-        var w = 0; var h = 0
+        var w = 0
+        var h = 0
         var off = start
         while (off + 3 <= end) {
             val (id, idLen) = readElementId(data, off)
@@ -573,7 +565,9 @@ class MkvKeyframeExtractor(
 
         return if (cueTime != null && clusterPosition != null) {
             ClusterEntry(cueTime, clusterPosition)
-        } else null
+        } else {
+            null
+        }
     }
 
     private fun parseCueTrackPositions(data: ByteArray, start: Int, end: Int): Pair<Long?, Long?> {
@@ -614,7 +608,7 @@ class MkvKeyframeExtractor(
             val rawDataEnd = minOf(clusterData.size.toLong(), dataStart + maxOf(size, 1L)).toInt()
 
             when (id) {
-                0xE7L -> {  }
+                0xE7L -> { }
                 SIMPLE_BLOCK_ID -> {
                     val result = extractSimpleBlock(clusterData, dataStart, rawDataEnd, targetTrack)
                     if (result != null) return result
@@ -653,10 +647,8 @@ class MkvKeyframeExtractor(
 
         val lacing = (flags shr 1) and 0x03
         return if (lacing == 0) {
-
             data.copyOfRange(off, end)
         } else {
-
             extractFirstLacedFrame(data, off, end, lacing)
         }
     }
@@ -667,7 +659,6 @@ class MkvKeyframeExtractor(
         end: Int,
         targetTrack: Long,
     ): ByteArray? {
-
         var blockPayload: ByteArray? = null
         var hasReference = false
         var off = start
@@ -705,11 +696,13 @@ class MkvKeyframeExtractor(
         return when (lacing) {
             1 -> extractFirstXiphFrame(data, start + 1, end, numFrames)
             2 -> {
-
                 val totalData = end - start - 1
                 val frameSize = totalData / numFrames
-                if (frameSize <= 0) null
-                else data.copyOfRange(start + 1, start + 1 + frameSize)
+                if (frameSize <= 0) {
+                    null
+                } else {
+                    data.copyOfRange(start + 1, start + 1 + frameSize)
+                }
             }
             3 -> extractFirstEbmlLacedFrame(data, start + 1, end, numFrames)
             else -> data.copyOfRange(start, end)
@@ -740,7 +733,9 @@ class MkvKeyframeExtractor(
 
         return if (sizes.isNotEmpty() && sizes[0] > 0) {
             data.copyOfRange(off, off + sizes[0])
-        } else null
+        } else {
+            null
+        }
     }
 
     private fun extractFirstEbmlLacedFrame(data: ByteArray, start: Int, end: Int, numFrames: Int): ByteArray? {
@@ -813,7 +808,6 @@ class MkvKeyframeExtractor(
         contentLength: Long,
         segmentDataOff: Long,
     ): Mp4KeyframeExtractor.ParsedMoov? {
-
         val tailSize = (SEARCH_TAIL_SIZE * 2).coerceAtMost(contentLength.toInt())
         val tailData = httpRange(url, contentLength - tailSize, tailSize)
         if (tailData == null) return null
@@ -941,14 +935,12 @@ class MkvKeyframeExtractor(
         else -> null
     }
 
-    private fun readInt32BE(data: ByteArray, offset: Int): Int =
-        ((data[offset].toInt() and 0xFF) shl 24) or
+    private fun readInt32BE(data: ByteArray, offset: Int): Int = ((data[offset].toInt() and 0xFF) shl 24) or
         ((data[offset + 1].toInt() and 0xFF) shl 16) or
         ((data[offset + 2].toInt() and 0xFF) shl 8) or
         (data[offset + 3].toInt() and 0xFF)
 
-    private fun readInt64BE(data: ByteArray, offset: Int): Long =
-        ((data[offset].toLong() and 0xFF) shl 56) or
+    private fun readInt64BE(data: ByteArray, offset: Int): Long = ((data[offset].toLong() and 0xFF) shl 56) or
         ((data[offset + 1].toLong() and 0xFF) shl 48) or
         ((data[offset + 2].toLong() and 0xFF) shl 40) or
         ((data[offset + 3].toLong() and 0xFF) shl 32) or

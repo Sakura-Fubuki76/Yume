@@ -377,7 +377,7 @@ internal class ImageViewerPageState(
         scale = nextScale
         offset = clampOffset(
             candidate = Offset((1 - nextScale) * dx, (1 - nextScale) * dy),
-            targetScale = nextScale
+            targetScale = nextScale,
         )
         isZoomed = scale > minScale
     }

@@ -70,8 +70,7 @@ object ImageCacheManager {
         remoteThumbnailDiskCache = cache
     }
 
-    fun getRemoteThumbnailCacheUsageBytes(): Long =
-        runCatching { remoteThumbnailDiskCache?.size ?: 0L }.getOrDefault(0L)
+    fun getRemoteThumbnailCacheUsageBytes(): Long = runCatching { remoteThumbnailDiskCache?.size ?: 0L }.getOrDefault(0L)
 
     fun removeRemoteThumbnailCacheEntry(key: String) {
         runCatching { remoteThumbnailDiskCache?.remove(key) }

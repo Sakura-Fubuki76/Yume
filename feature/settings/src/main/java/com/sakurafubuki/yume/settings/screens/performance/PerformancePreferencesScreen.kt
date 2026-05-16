@@ -421,10 +421,11 @@ private fun ImageBrowserThumbnailSizePicker(
                                 }
                                 .padding(vertical = 12.dp, horizontal = 4.dp),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = if (sizePx == currentSizePx)
+                            color = if (sizePx == currentSizePx) {
                                 MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface,
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                         )
                     }
                 }
@@ -556,10 +557,11 @@ private fun CloudImageCacheExpiryPicker(
                                 }
                                 .padding(vertical = 12.dp, horizontal = 4.dp),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = if (expiry == currentExpiry)
+                            color = if (expiry == currentExpiry) {
                                 MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface,
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
                         )
                     }
                 }

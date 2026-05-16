@@ -2,13 +2,13 @@ package com.sakurafubuki.yume.core.domain
 
 import android.content.Context
 import android.net.Uri
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.sakurafubuki.yume.core.common.Dispatcher
 import com.sakurafubuki.yume.core.common.NextDispatchers
 import com.sakurafubuki.yume.core.common.extensions.getPath
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.model.MediaViewMode
 import com.sakurafubuki.yume.core.model.Video
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher

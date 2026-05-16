@@ -1,9 +1,5 @@
 package com.sakurafubuki.yume.core.data
 
-import dagger.Binds
-import dagger.Module
-import dagger.hilt.InstallIn
-import dagger.hilt.components.SingletonComponent
 import com.sakurafubuki.yume.core.data.repository.CloudVideoMetadataRepository
 import com.sakurafubuki.yume.core.data.repository.LocalCloudVideoMetadataRepository
 import com.sakurafubuki.yume.core.data.repository.LocalMediaRepository
@@ -18,6 +14,10 @@ import com.sakurafubuki.yume.core.data.webdav.SardineFactory
 import com.sakurafubuki.yume.core.data.webdav.SardineFactoryImpl
 import com.sakurafubuki.yume.core.data.webdav.WebDavRepository
 import com.sakurafubuki.yume.core.data.webdav.WebDavRepositoryImpl
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @Module

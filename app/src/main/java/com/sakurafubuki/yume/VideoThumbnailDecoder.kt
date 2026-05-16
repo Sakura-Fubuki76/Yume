@@ -86,7 +86,7 @@ class VideoThumbnailDecoder(
             }
 
             val (targetW, targetH) = computeThumbnailTargetSize()
-            "${baseKey}_${targetW}x${targetH}"
+            "${baseKey}_${targetW}x$targetH"
         }
 
     @OptIn(ExperimentalCoilApi::class)
@@ -153,9 +153,13 @@ class VideoThumbnailDecoder(
 
                 val embeddedPicture = if (nativeOk) {
                     runCatching { nativeRetriever.embeddedPicture }.getOrNull()
-                } else null ?: if (ffmpegOk) {
-                    runCatching { ffmpegRetriever.getEmbeddedPicture() }.getOrNull()
-                } else null
+                } else {
+                    null ?: if (ffmpegOk) {
+                        runCatching { ffmpegRetriever.getEmbeddedPicture() }.getOrNull()
+                    } else {
+                        null
+                    }
+                }
 
                 val embeddedPictureBitmap = embeddedPicture?.let { pictureBytes ->
                     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -167,7 +171,9 @@ class VideoThumbnailDecoder(
                         requestedHeight = options.size.height.pxOrElse { embeddedMaxEdge() },
                     )
                     BitmapFactory.decodeByteArray(
-                        pictureBytes, 0, pictureBytes.size,
+                        pictureBytes,
+                        0,
+                        pictureBytes.size,
                         BitmapFactory.Options().apply { inSampleSize = sampleSize },
                     )
                 }
@@ -176,7 +182,9 @@ class VideoThumbnailDecoder(
 
                 val videoDuration = if (nativeOk) {
                     runCatching { nativeRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION) }.getOrNull()?.toLongOrNull() ?: 0L
-                } else 0L
+                } else {
+                    0L
+                }
 
                 return@use when (strategy) {
                     is ThumbnailStrategy.FirstFrame -> {
@@ -204,8 +212,12 @@ class VideoThumbnailDecoder(
                             val timeUs = (videoDuration * strategy.percentage * 1000).toLong()
                             val frame = if (nativeOk) nativeRetriever.getScaledFrame(timeUs, targetW, targetH) else null
                             frame
-                                ?: if (ffmpegOk) runCatching { ffmpegRetriever.getFrameAtTime(timeUs) }.getOrNull() else null
-                                ?: if (nativeOk) nativeRetriever.getScaledFrame(0, targetW, targetH) else null
+                                ?: if (ffmpegOk) {
+                                    runCatching { ffmpegRetriever.getFrameAtTime(timeUs) }.getOrNull()
+                                } else {
+                                    null
+                                        ?: if (nativeOk) nativeRetriever.getScaledFrame(0, targetW, targetH) else null
+                                }
                         } else {
                             nativeRetriever.getScaledFrame(0, targetW, targetH)
                         }
@@ -354,9 +366,7 @@ class VideoThumbnailDecoder(
         return null
     }
 
-    private fun readFromDiskCache(): DiskCache.Snapshot? {
-        return activeDiskCache.value?.openSnapshot(diskCacheKey)
-    }
+    private fun readFromDiskCache(): DiskCache.Snapshot? = activeDiskCache.value?.openSnapshot(diskCacheKey)
 
     private fun writeToDiskCache(inBitmap: Bitmap) {
         val editor = activeDiskCache.value?.openEditor(diskCacheKey) ?: return
@@ -444,25 +454,23 @@ class VideoThumbnailDecoder(
         val h = options.size.height.pxOrElse { 0 }
         return (
             if (w > 0) maxOf(w, ThumbnailTargetSize) else ThumbnailTargetSize
-        ) to (
+            ) to (
             if (h > 0) maxOf(h, ThumbnailTargetSize) else ThumbnailTargetSize
-        )
+            )
     }
 
-    private fun MediaMetadataRetriever.getScaledFrame(timeUs: Long, targetWidth: Int, targetHeight: Int): Bitmap? {
-        return runCatching {
-            getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, targetWidth, targetHeight)
+    private fun MediaMetadataRetriever.getScaledFrame(timeUs: Long, targetWidth: Int, targetHeight: Int): Bitmap? = runCatching {
+        getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, targetWidth, targetHeight)
+    }.getOrNull()
+        ?: runCatching {
+            getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST, targetWidth, targetHeight)
         }.getOrNull()
-            ?: runCatching {
-                getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST, targetWidth, targetHeight)
-            }.getOrNull()
-            ?: runCatching {
-                getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, FALLBACK_MAX_EDGE, FALLBACK_MAX_EDGE)
-            }.getOrNull()
-            ?: runCatching {
-                getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST, FALLBACK_MAX_EDGE, FALLBACK_MAX_EDGE)
-            }.getOrNull()
-    }
+        ?: runCatching {
+            getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, FALLBACK_MAX_EDGE, FALLBACK_MAX_EDGE)
+        }.getOrNull()
+        ?: runCatching {
+            getScaledFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST, FALLBACK_MAX_EDGE, FALLBACK_MAX_EDGE)
+        }.getOrNull()
 
     private fun isRemoteSource(): Boolean {
         val metadata = source.metadata
@@ -503,7 +511,6 @@ private inline fun <T> MediaMetadataRetriever.use(block: (MediaMetadataRetriever
     try {
         return block(this)
     } finally {
-
         if (SDK_INT >= 29) {
             close()
         } else {

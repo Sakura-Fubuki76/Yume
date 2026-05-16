@@ -11,7 +11,7 @@ import androidx.media3.effect.BaseGlShaderProgram
 class DitherShaderProgram(
     useHdr: Boolean,
     private val ditherBitDepth: Int = 8,
-) : BaseGlShaderProgram(useHdr,  1) {
+) : BaseGlShaderProgram(useHdr, 1) {
 
     private var program: GlProgram? = null
     private var passThroughProgram: GlProgram? = null

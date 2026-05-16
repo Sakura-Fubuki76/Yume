@@ -51,7 +51,6 @@ fun RenameDialog(
     )
 
     LaunchedEffect(key1 = Unit) {
-
         delay(200.milliseconds)
         focusRequester.requestFocus()
     }

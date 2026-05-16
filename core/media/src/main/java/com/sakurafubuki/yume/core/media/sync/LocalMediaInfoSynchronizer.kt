@@ -2,10 +2,9 @@ package com.sakurafubuki.yume.core.media.sync
 
 import android.content.Context
 import android.net.Uri
-import com.sakurafubuki.yume.core.common.Logger
 import coil3.ImageLoader
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.sakurafubuki.yume.core.common.Dispatcher
+import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.common.NextDispatchers
 import com.sakurafubuki.yume.core.common.di.ApplicationScope
 import com.sakurafubuki.yume.core.database.dao.MediumDao
@@ -13,6 +12,7 @@ import com.sakurafubuki.yume.core.database.dao.WebDavVideoMetadataDao
 import com.sakurafubuki.yume.core.database.entities.AudioStreamInfoEntity
 import com.sakurafubuki.yume.core.database.entities.SubtitleStreamInfoEntity
 import com.sakurafubuki.yume.core.database.entities.VideoStreamInfoEntity
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.anilbeesetti.nextlib.mediainfo.AudioStream
 import io.github.anilbeesetti.nextlib.mediainfo.MediaInfoBuilder
 import io.github.anilbeesetti.nextlib.mediainfo.SubtitleStream

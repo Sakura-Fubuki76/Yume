@@ -11,10 +11,10 @@ import coil3.fetch.SourceFetchResult
 import coil3.request.Options
 import coil3.size.Dimension
 import coil3.size.Precision
-import okio.use
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import okio.use
 
 class LibyuvBitmapDecoder(
     private val source: ImageSource,
@@ -22,7 +22,7 @@ class LibyuvBitmapDecoder(
 ) : Decoder {
 
     override suspend fun decode(): DecodeResult? {
-        val reqWidth  = (options.size.width  as? Dimension.Pixels)?.px ?: return null
+        val reqWidth = (options.size.width as? Dimension.Pixels)?.px ?: return null
         val reqHeight = (options.size.height as? Dimension.Pixels)?.px ?: return null
 
         val bytes = source.source().use { it.readByteArray() }
@@ -41,13 +41,15 @@ class LibyuvBitmapDecoder(
         }
 
         val inSampleSize = calculateInSampleSize(
-            srcW = probe.outWidth, srcH = probe.outHeight,
-            dstW = targetWidth,   dstH = targetHeight,
+            srcW = probe.outWidth,
+            srcH = probe.outHeight,
+            dstW = targetWidth,
+            dstH = targetHeight,
         )
 
         val decodeOptions = BitmapFactory.Options().apply {
             this.inSampleSize = inSampleSize
-            inPreferredConfig  = Bitmap.Config.ARGB_8888
+            inPreferredConfig = Bitmap.Config.ARGB_8888
         }
         val rough = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
             ?: return null
@@ -57,9 +59,9 @@ class LibyuvBitmapDecoder(
         }
 
         val scaled = YuvToBitmapBridge.argbScale(
-            srcBitmap  = rough,
-            dstWidth   = targetWidth,
-            dstHeight  = targetHeight,
+            srcBitmap = rough,
+            dstWidth = targetWidth,
+            dstHeight = targetHeight,
             filterMode = FilterMode.BOX,
         )
         rough.recycle()
@@ -93,13 +95,15 @@ class LibyuvBitmapDecoder(
             options: Options,
             imageLoader: ImageLoader,
         ): Decoder? {
-
             val mime = result.mimeType ?: return null
             if (!mime.startsWith("image/") ||
                 mime == "image/gif" ||
-                mime == "image/svg+xml") return null
+                mime == "image/svg+xml"
+            ) {
+                return null
+            }
 
-            if (options.size.width  !is Dimension.Pixels) return null
+            if (options.size.width !is Dimension.Pixels) return null
             if (options.size.height !is Dimension.Pixels) return null
 
             return LibyuvBitmapDecoder(result.source, options)

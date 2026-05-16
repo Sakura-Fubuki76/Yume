@@ -3,7 +3,6 @@ package com.sakurafubuki.yume.settings.screens.player
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.sakurafubuki.yume.core.common.extensions.round
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.model.Anime4KRestoreMode
@@ -11,6 +10,7 @@ import com.sakurafubuki.yume.core.model.ControlButtonsPosition
 import com.sakurafubuki.yume.core.model.PlayerPreferences
 import com.sakurafubuki.yume.core.model.Resume
 import com.sakurafubuki.yume.core.model.ScreenOrientation
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

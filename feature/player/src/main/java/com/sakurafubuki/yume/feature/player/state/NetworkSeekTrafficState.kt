@@ -81,8 +81,7 @@ private fun readUidRxBytes(uid: Int): Long? {
     return bytes.takeIf { it != TrafficStats.UNSUPPORTED.toLong() }
 }
 
-private fun String.isHttpMediaId(): Boolean =
-    startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
+private fun String.isHttpMediaId(): Boolean = startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
 
 private fun formatBytes(bytes: Long): String {
     val units = arrayOf("B", "KB", "MB", "GB")

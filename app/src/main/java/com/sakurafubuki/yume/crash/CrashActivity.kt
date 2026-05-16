@@ -53,7 +53,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import dagger.hilt.android.AndroidEntryPoint
 import com.sakurafubuki.yume.BuildConfig
 import com.sakurafubuki.yume.MainActivity
 import com.sakurafubuki.yume.MainActivityUiState
@@ -64,6 +63,7 @@ import com.sakurafubuki.yume.core.ui.theme.YumeTheme
 import com.sakurafubuki.yume.shouldUseDarkTheme
 import com.sakurafubuki.yume.shouldUseDynamicTheming
 import com.sakurafubuki.yume.shouldUseHighContrastDarkTheme
+import dagger.hilt.android.AndroidEntryPoint
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader

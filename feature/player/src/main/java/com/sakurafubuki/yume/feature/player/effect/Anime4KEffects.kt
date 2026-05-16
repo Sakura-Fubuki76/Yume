@@ -30,14 +30,13 @@ class Anime4KRestoreEffect(
 
 @UnstableApi
 class Anime4KClampHighlightsEffect : GlEffect {
-    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram =
-        Anime4KClampHighlightsShaderProgram(useHdr)
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = Anime4KClampHighlightsShaderProgram(useHdr)
 }
 
 @UnstableApi
 private class Anime4KClampHighlightsShaderProgram(
     useHdr: Boolean,
-) : BaseGlShaderProgram(useHdr,  1) {
+) : BaseGlShaderProgram(useHdr, 1) {
     private var program: GlProgram? = null
     private var passThroughProgram: GlProgram? = null
     private var failed = false

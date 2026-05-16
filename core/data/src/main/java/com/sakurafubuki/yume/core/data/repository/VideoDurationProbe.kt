@@ -73,26 +73,34 @@ private suspend fun fetchWithRetry(
     return null
 }
 
-private fun isMkv(data: ByteArray): Boolean =
-    data.size >= 4 && data[0] == 0x1A.toByte() && data[1] == 0x45.toByte() &&
-        data[2] == 0xDF.toByte() && data[3] == 0xA3.toByte()
+private fun isMkv(data: ByteArray): Boolean = data.size >= 4 &&
+    data[0] == 0x1A.toByte() &&
+    data[1] == 0x45.toByte() &&
+    data[2] == 0xDF.toByte() &&
+    data[3] == 0xA3.toByte()
 
-private fun isMp4(data: ByteArray): Boolean =
-    data.size >= 12 && data[4] == 'f'.code.toByte() && data[5] == 't'.code.toByte() &&
-        data[6] == 'y'.code.toByte() && data[7] == 'p'.code.toByte()
+private fun isMp4(data: ByteArray): Boolean = data.size >= 12 &&
+    data[4] == 'f'.code.toByte() &&
+    data[5] == 't'.code.toByte() &&
+    data[6] == 'y'.code.toByte() &&
+    data[7] == 'p'.code.toByte()
 
-private fun isFlv(data: ByteArray): Boolean =
-    data.size >= 3 && data[0] == 'F'.code.toByte() && data[1] == 'L'.code.toByte() &&
-        data[2] == 'V'.code.toByte()
+private fun isFlv(data: ByteArray): Boolean = data.size >= 3 &&
+    data[0] == 'F'.code.toByte() &&
+    data[1] == 'L'.code.toByte() &&
+    data[2] == 'V'.code.toByte()
 
-private fun isAvi(data: ByteArray): Boolean =
-    data.size >= 12 && data[0] == 'R'.code.toByte() && data[1] == 'I'.code.toByte() &&
-        data[2] == 'F'.code.toByte() && data[3] == 'F'.code.toByte() &&
-        data[8] == 'A'.code.toByte() && data[9] == 'V'.code.toByte() &&
-        data[10] == 'I'.code.toByte() && data[11] == ' '.code.toByte()
+private fun isAvi(data: ByteArray): Boolean = data.size >= 12 &&
+    data[0] == 'R'.code.toByte() &&
+    data[1] == 'I'.code.toByte() &&
+    data[2] == 'F'.code.toByte() &&
+    data[3] == 'F'.code.toByte() &&
+    data[8] == 'A'.code.toByte() &&
+    data[9] == 'V'.code.toByte() &&
+    data[10] == 'I'.code.toByte() &&
+    data[11] == ' '.code.toByte()
 
-private fun Long.safeToInt(ceiling: Int = Int.MAX_VALUE): Int =
-    coerceAtMost(ceiling.toLong()).toInt()
+private fun Long.safeToInt(ceiling: Int = Int.MAX_VALUE): Int = coerceAtMost(ceiling.toLong()).toInt()
 
 private fun parseMkvDuration(data: ByteArray): Long? {
     try {
@@ -107,7 +115,11 @@ private fun parseMkvDuration(data: ByteArray): Long? {
         while (offset < data.size - 4) {
             val (eid, idLen) = readEbmlId(data, offset.toInt()) ?: break
             val (size, sizeLen) = readEbmlSize(data, offset.toInt() + idLen) ?: break
-            if (eid == segmentId) { segOffset = offset + idLen + sizeLen; segSize = size; break }
+            if (eid == segmentId) {
+                segOffset = offset + idLen + sizeLen
+                segSize = size
+                break
+            }
             offset += idLen + sizeLen + size.safeToInt(data.size)
         }
         if (segOffset < 0) return null
@@ -194,7 +206,10 @@ private fun readEbmlSize(data: ByteArray, offset: Int): Pair<Long, Int>? {
     val first = data[offset].toInt() and 0xFF
     var mask = 0x80
     var len = 1
-    while (len <= 8 && (first and mask) == 0) { mask = mask shr 1; len++ }
+    while (len <= 8 && (first and mask) == 0) {
+        mask = mask shr 1
+        len++
+    }
     if (len > 8 || offset + len > data.size) return null
     var value = (first and (mask - 1)).toLong()
     for (i in 1 until len) {
@@ -281,13 +296,11 @@ private fun parseFlvDuration(data: ByteArray): Long? {
                 if (pos + 1 < bodyEnd) {
                     val marker = data[pos].toInt() and 0xFF
                     if (marker == 0x08) {
-
                         pos += 4
                         pos = skipAmf0Value(data, pos, bodyEnd) ?: break
                     } else {
                         pos = skipAmf0Value(data, pos, bodyEnd) ?: break
                     }
-
                 }
 
                 pos = bodyStart
@@ -363,7 +376,6 @@ private fun skipAmf0Value(data: ByteArray, pos: Int, end: Int): Int? {
 private fun skipAmf0ObjectBody(data: ByteArray, pos: Int, end: Int): Int? {
     var p = pos
     while (p + 3 <= end) {
-
         val keyLen = ((data[p].toInt() and 0xFF) shl 8) or (data[p + 1].toInt() and 0xFF)
         if (keyLen == 0) {
             val termMarker = data[p + 2].toInt() and 0xFF
@@ -382,12 +394,10 @@ private fun findAmf0KeyDuration(data: ByteArray, pos: Int, end: Int): Long? {
     while (p + 3 <= end) {
         val marker = data[p].toInt() and 0xFF
         if (marker == 0x03) {
-
             p++
             continue
         }
         if (marker == 0x08) {
-
             if (p + 5 > end) return null
             p += 5
             continue
@@ -429,7 +439,6 @@ private fun parseAviDuration(data: ByteArray): Long? {
             if (chunkId == "LIST") {
                 val listType = String(data, o + 8, 4)
                 if (listType == "hdrl") {
-
                     val hdrlEnd = minOf(offset + 12 + chunkSize - 4, data.size.toLong())
                     var hdrlOffset = offset + 12
                     while (hdrlOffset + 8 < hdrlEnd) {
@@ -462,41 +471,29 @@ private fun parseAviDuration(data: ByteArray): Long? {
     return null
 }
 
-private fun readInt32BE(data: ByteArray, offset: Int): Int {
-    return ((data[offset].toInt() and 0xFF) shl 24) or
-        ((data[offset + 1].toInt() and 0xFF) shl 16) or
-        ((data[offset + 2].toInt() and 0xFF) shl 8) or
-        (data[offset + 3].toInt() and 0xFF)
-}
+private fun readInt32BE(data: ByteArray, offset: Int): Int = ((data[offset].toInt() and 0xFF) shl 24) or
+    ((data[offset + 1].toInt() and 0xFF) shl 16) or
+    ((data[offset + 2].toInt() and 0xFF) shl 8) or
+    (data[offset + 3].toInt() and 0xFF)
 
-private fun readUInt32BE(data: ByteArray, offset: Int): Long {
-    return readInt32BE(data, offset).toLong() and 0xFFFFFFFFL
-}
+private fun readUInt32BE(data: ByteArray, offset: Int): Long = readInt32BE(data, offset).toLong() and 0xFFFFFFFFL
 
-private fun readInt64BE(data: ByteArray, offset: Int): Long {
-    return ((data[offset].toLong() and 0xFF) shl 56) or
-        ((data[offset + 1].toLong() and 0xFF) shl 48) or
-        ((data[offset + 2].toLong() and 0xFF) shl 40) or
-        ((data[offset + 3].toLong() and 0xFF) shl 32) or
-        ((data[offset + 4].toLong() and 0xFF) shl 24) or
-        ((data[offset + 5].toLong() and 0xFF) shl 16) or
-        ((data[offset + 6].toLong() and 0xFF) shl 8) or
-        (data[offset + 7].toLong() and 0xFF)
-}
+private fun readInt64BE(data: ByteArray, offset: Int): Long = ((data[offset].toLong() and 0xFF) shl 56) or
+    ((data[offset + 1].toLong() and 0xFF) shl 48) or
+    ((data[offset + 2].toLong() and 0xFF) shl 40) or
+    ((data[offset + 3].toLong() and 0xFF) shl 32) or
+    ((data[offset + 4].toLong() and 0xFF) shl 24) or
+    ((data[offset + 5].toLong() and 0xFF) shl 16) or
+    ((data[offset + 6].toLong() and 0xFF) shl 8) or
+    (data[offset + 7].toLong() and 0xFF)
 
-private fun readInt24BE(data: ByteArray, offset: Int): Int {
-    return ((data[offset].toInt() and 0xFF) shl 16) or
-        ((data[offset + 1].toInt() and 0xFF) shl 8) or
-        (data[offset + 2].toInt() and 0xFF)
-}
+private fun readInt24BE(data: ByteArray, offset: Int): Int = ((data[offset].toInt() and 0xFF) shl 16) or
+    ((data[offset + 1].toInt() and 0xFF) shl 8) or
+    (data[offset + 2].toInt() and 0xFF)
 
-private fun readInt32LE(data: ByteArray, offset: Int): Int {
-    return (data[offset].toInt() and 0xFF) or
-        ((data[offset + 1].toInt() and 0xFF) shl 8) or
-        ((data[offset + 2].toInt() and 0xFF) shl 16) or
-        ((data[offset + 3].toInt() and 0xFF) shl 24)
-}
+private fun readInt32LE(data: ByteArray, offset: Int): Int = (data[offset].toInt() and 0xFF) or
+    ((data[offset + 1].toInt() and 0xFF) shl 8) or
+    ((data[offset + 2].toInt() and 0xFF) shl 16) or
+    ((data[offset + 3].toInt() and 0xFF) shl 24)
 
-private fun readUInt32LE(data: ByteArray, offset: Int): Long {
-    return readInt32LE(data, offset).toLong() and 0xFFFFFFFFL
-}
+private fun readUInt32LE(data: ByteArray, offset: Int): Long = readInt32LE(data, offset).toLong() and 0xFFFFFFFFL

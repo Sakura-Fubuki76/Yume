@@ -9,11 +9,9 @@ import android.os.Build.VERSION.SDK_INT
 import android.util.Base64
 import android.util.Log
 import androidx.core.graphics.get
-import com.sakurafubuki.yume.core.common.Logger
 import coil3.ImageLoader
 import coil3.memory.MemoryCache
-import dagger.hilt.android.qualifiers.ApplicationContext
-
+import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.common.extensions.stripUserInfoFromHttpUrl
 import com.sakurafubuki.yume.core.data.webdav.WebDavRepository
 import com.sakurafubuki.yume.core.database.dao.WebDavFolderMetadataDao
@@ -25,14 +23,14 @@ import com.sakurafubuki.yume.core.model.CloudVideoMetadata
 import com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy
 import com.sakurafubuki.yume.core.model.WebDavMediaItem
 import com.sakurafubuki.yume.core.model.WebDavServer
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.github.anilbeesetti.nextlib.mediainfo.MediaThumbnailRetriever
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -41,13 +39,14 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import kotlin.math.abs
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 @Singleton
 class LocalCloudVideoMetadataRepository @Inject constructor(
@@ -85,20 +84,19 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
         }
     }
 
-    override fun observeMetadata(serverId: Int): Flow<Map<String, CloudVideoMetadata>> =
-        webDavVideoMetadataDao.observeByServer(serverId)
-            .map { entities ->
-                entities.associate { entity ->
-                    entity.href to CloudVideoMetadata(
-                        href = entity.href,
-                        durationMs = entity.durationMs,
-                        thumbnailPath = entity.thumbnailPath,
-                        width = entity.width,
-                        height = entity.height,
-                    )
-                }
+    override fun observeMetadata(serverId: Int): Flow<Map<String, CloudVideoMetadata>> = webDavVideoMetadataDao.observeByServer(serverId)
+        .map { entities ->
+            entities.associate { entity ->
+                entity.href to CloudVideoMetadata(
+                    href = entity.href,
+                    durationMs = entity.durationMs,
+                    thumbnailPath = entity.thumbnailPath,
+                    width = entity.width,
+                    height = entity.height,
+                )
             }
-            .distinctUntilChanged()
+        }
+        .distinctUntilChanged()
 
     override fun observeMetadata(
         serverId: Int,
@@ -165,228 +163,231 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
 
         return try {
             withContext(Dispatchers.IO) {
-            val existing = webDavVideoMetadataDao.getByServerAndHrefs(
-                serverId = server.id,
-                hrefs = videoItems.map { it.href },
-            ).associateBy { it.href }.toMutableMap()
-            val existingLock = Any()
+                val existing = webDavVideoMetadataDao.getByServerAndHrefs(
+                    serverId = server.id,
+                    hrefs = videoItems.map { it.href },
+                ).associateBy { it.href }.toMutableMap()
+                val existingLock = Any()
 
-            val now = System.currentTimeMillis()
+                val now = System.currentTimeMillis()
 
-            val (apiThumbItems, localThumbItems) = videoItems.partition { it.apiThumbnailUrl != null }
-            if (apiThumbItems.isNotEmpty()) {
-                val apiEntities = apiThumbItems
-                    .filter { item ->
-                        val cached = existing[item.href]
-                        val hasValidThumbnail = cached?.thumbnailPath?.let { path ->
-                            path == item.apiThumbnailUrl || File(path).exists()
-                        } == true
-                        cached == null || !hasValidThumbnail || cached.durationMs <= 0L
-                    }
-                    .map { item ->
-                        async {
-                            val extension = item.name.substringAfterLast('.', "")
-                            val rawUrl = item.rawVideoUrl
-                            Logger.d(TAG, "[API_THUMB] name=${item.name} rawUrl=${rawUrl?.take(100)}...")
-                            val durationMs = if (rawUrl != null) {
-                                probeVideoDurationMs(rawUrl, okHttpClient, extension, mp4KeyframeExtractor) ?: 0L
-                            } else 0L
-                            Logger.d(TAG, "[API_THUMB] name=${item.name} durationMs=$durationMs")
+                val (apiThumbItems, localThumbItems) = videoItems.partition { it.apiThumbnailUrl != null }
+                if (apiThumbItems.isNotEmpty()) {
+                    val apiEntities = apiThumbItems
+                        .filter { item ->
+                            val cached = existing[item.href]
+                            val hasValidThumbnail = cached?.thumbnailPath?.let { path ->
+                                path == item.apiThumbnailUrl || File(path).exists()
+                            } == true
+                            cached == null || !hasValidThumbnail || cached.durationMs <= 0L
+                        }
+                        .map { item ->
+                            async {
+                                val extension = item.name.substringAfterLast('.', "")
+                                val rawUrl = item.rawVideoUrl
+                                Logger.d(TAG, "[API_THUMB] name=${item.name} rawUrl=${rawUrl?.take(100)}...")
+                                val durationMs = if (rawUrl != null) {
+                                    probeVideoDurationMs(rawUrl, okHttpClient, extension, mp4KeyframeExtractor) ?: 0L
+                                } else {
+                                    0L
+                                }
+                                Logger.d(TAG, "[API_THUMB] name=${item.name} durationMs=$durationMs")
 
-                            val localThumbPath = item.apiThumbnailUrl?.let { url ->
-                                downloadApiThumbnail(url, "${server.id}|${item.href}")
+                                val localThumbPath = item.apiThumbnailUrl?.let { url ->
+                                    downloadApiThumbnail(url, "${server.id}|${item.href}")
+                                }
+                                WebDavVideoMetadataEntity(
+                                    serverId = server.id,
+                                    href = item.href,
+                                    durationMs = durationMs,
+                                    thumbnailPath = localThumbPath ?: item.apiThumbnailUrl,
+                                    width = item.width ?: 0,
+                                    height = item.height ?: 0,
+                                    updatedAt = now,
+                                )
                             }
-                            WebDavVideoMetadataEntity(
-                                serverId = server.id,
-                                href = item.href,
-                                durationMs = durationMs,
-                                thumbnailPath = localThumbPath ?: item.apiThumbnailUrl,
-                                width = item.width ?: 0,
-                                height = item.height ?: 0,
-                                updatedAt = now,
+                        }
+                        .awaitAll()
+                    if (apiEntities.isNotEmpty()) {
+                        webDavVideoMetadataDao.upsertAll(apiEntities)
+                        for (entity in apiEntities) {
+                            existing[entity.href] = entity
+                        }
+                    }
+                }
+
+                if (localThumbItems.isEmpty()) {
+                    return@withContext apiThumbItems.isNotEmpty()
+                }
+
+                val orphanRecoveries = mutableListOf<WebDavVideoMetadataEntity>()
+                for (item in localThumbItems) {
+                    val cached = existing[item.href]
+                    val hasValidThumbnail = cached?.thumbnailPath?.let { File(it).exists() } ?: false
+                    if (!hasValidThumbnail) {
+                        val expectedFile = existingThumbnailFile("${server.id}|${item.href}")
+                        if (expectedFile.exists()) {
+                            orphanRecoveries.add(
+                                WebDavVideoMetadataEntity(
+                                    serverId = server.id,
+                                    href = item.href,
+                                    durationMs = cached?.durationMs?.takeIf { it > 0L } ?: 0L,
+                                    thumbnailPath = expectedFile.absolutePath,
+                                    width = item.width ?: 0,
+                                    height = item.height ?: 0,
+                                    updatedAt = now,
+                                ),
                             )
                         }
                     }
-                    .awaitAll()
-                if (apiEntities.isNotEmpty()) {
-                    webDavVideoMetadataDao.upsertAll(apiEntities)
-                    for (entity in apiEntities) {
-                        existing[entity.href] = entity
+                }
+                if (orphanRecoveries.isNotEmpty()) {
+                    webDavVideoMetadataDao.upsertAll(orphanRecoveries)
+                    for (entity in orphanRecoveries) {
+                        val prev = existing[entity.href]
+                        val prevThumbnailPath = prev?.thumbnailPath
+                        if (prev == null || prevThumbnailPath.isNullOrBlank() || !File(prevThumbnailPath).exists()) {
+                            existing[entity.href] = entity
+                        }
                     }
                 }
-            }
 
-            if (localThumbItems.isEmpty()) {
-                return@withContext apiThumbItems.isNotEmpty()
-            }
+                val durationMissingItems = localThumbItems.filter {
+                    (existing[it.href]?.durationMs ?: 0L) <= 0L
+                }
+                val durationProbeJobs = if (durationMissingItems.isNotEmpty()) {
+                    val durationSemaphore = Semaphore(durationProbeConcurrency())
+                    durationMissingItems.map { item ->
+                        async {
+                            durationSemaphore.withPermit {
+                                val probeUrl = item.rawVideoUrl
+                                    ?: webDavRepository.getStreamUrl(item, server)
+                                val extension = item.name.substringAfterLast('.', "")
+                                Logger.d(TAG, "[LOCAL_THUMB] name=${item.name} probeUrl=${probeUrl.take(100)}...")
+                                val durationMs = probeVideoDurationMs(probeUrl, okHttpClient, extension, mp4KeyframeExtractor) ?: 0L
+                                Logger.d(TAG, "[LOCAL_THUMB] name=${item.name} durationMs=$durationMs")
+                                if (durationMs <= 0L) {
+                                    return@withPermit 0
+                                }
+                                val entity = WebDavVideoMetadataEntity(
+                                    serverId = server.id,
+                                    href = item.href,
+                                    durationMs = durationMs,
+                                    thumbnailPath = synchronized(existingLock) { existing[item.href]?.thumbnailPath },
+                                    width = item.width ?: 0,
+                                    height = item.height ?: 0,
+                                    updatedAt = System.currentTimeMillis(),
+                                )
+                                webDavVideoMetadataDao.upsertAll(listOf(entity))
+                                synchronized(existingLock) {
+                                    existing[entity.href] = entity
+                                }
+                                1
+                            }
+                        }
+                    }
+                } else {
+                    emptyList()
+                }
 
-            val orphanRecoveries = mutableListOf<WebDavVideoMetadataEntity>()
-            for (item in localThumbItems) {
-                val cached = existing[item.href]
-                val hasValidThumbnail = cached?.thumbnailPath?.let { File(it).exists() } ?: false
-                if (!hasValidThumbnail) {
-                    val expectedFile = existingThumbnailFile("${server.id}|${item.href}")
-                    if (expectedFile.exists()) {
-                        orphanRecoveries.add(
-                            WebDavVideoMetadataEntity(
-                                serverId = server.id,
-                                href = item.href,
-                                durationMs = cached?.durationMs?.takeIf { it > 0L } ?: 0L,
-                                thumbnailPath = expectedFile.absolutePath,
-                                width = item.width ?: 0,
-                                height = item.height ?: 0,
-                                updatedAt = now,
-                            ),
-                        )
+                val itemsToRefresh = localThumbItems.filter { item ->
+                    val cached = existing[item.href]
+                    val thumbnailPath = cached?.thumbnailPath
+                    when {
+                        cached == null -> true
+                        cached.durationMs <= 0L -> true
+                        thumbnailPath.isNullOrBlank() -> true
+                        !File(thumbnailPath).exists() -> true
+                        else -> false
                     }
                 }
-            }
-            if (orphanRecoveries.isNotEmpty()) {
-                webDavVideoMetadataDao.upsertAll(orphanRecoveries)
-                for (entity in orphanRecoveries) {
-                    val prev = existing[entity.href]
-                    val prevThumbnailPath = prev?.thumbnailPath
-                    if (prev == null || prevThumbnailPath.isNullOrBlank() || !File(prevThumbnailPath).exists()) {
-                        existing[entity.href] = entity
-                    }
+                if (itemsToRefresh.isEmpty()) {
+                    durationProbeJobs.awaitAll()
+                    return@withContext apiThumbItems.isNotEmpty()
                 }
-            }
 
-            val durationMissingItems = localThumbItems.filter {
-                (existing[it.href]?.durationMs ?: 0L) <= 0L
-            }
-            val durationProbeJobs = if (durationMissingItems.isNotEmpty()) {
-                val durationSemaphore = Semaphore(durationProbeConcurrency())
-                durationMissingItems.map { item ->
+                val semaphore = Semaphore(metadataConcurrency())
+                val entities = itemsToRefresh.map { item ->
                     async {
-                        durationSemaphore.withPermit {
-                            val probeUrl = item.rawVideoUrl
-                                ?: webDavRepository.getStreamUrl(item, server)
-                            val extension = item.name.substringAfterLast('.', "")
-                            Logger.d(TAG, "[LOCAL_THUMB] name=${item.name} probeUrl=${probeUrl.take(100)}...")
-                            val durationMs = probeVideoDurationMs(probeUrl, okHttpClient, extension, mp4KeyframeExtractor) ?: 0L
-                            Logger.d(TAG, "[LOCAL_THUMB] name=${item.name} durationMs=$durationMs")
-                            if (durationMs <= 0L) {
-                                return@withPermit 0
+                        semaphore.withPermit {
+                            currentCoroutineContext().ensureActive()
+                            val existingEntry = existing[item.href]
+                            val retryKey = "${server.id}|${item.href}"
+                            val shouldRetryNow = synchronized(metadataRetryLock) {
+                                (metadataRetryAfterMs[retryKey] ?: 0L) <= now
+                            }
+                            val captured = if (shouldRetryNow) {
+                                try {
+                                    captureMetadata(server, item)
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    Log.w(TAG, "captureMetadata: unhandled exception server=${server.id} href=${item.href}", e)
+                                    CapturedMetadata(durationMs = 0L, thumbnailPath = null)
+                                }
+                            } else {
+                                CapturedMetadata(durationMs = 0L, thumbnailPath = null)
+                            }
+                            val latestEntry = synchronized(existingLock) { existing[item.href] }
+                            val resolvedDurationMs = when {
+                                captured.durationMs > 0L -> captured.durationMs
+                                (latestEntry?.durationMs ?: 0L) > 0L -> latestEntry?.durationMs ?: 0L
+                                (existingEntry?.durationMs ?: 0L) > 0L -> existingEntry?.durationMs ?: 0L
+                                else -> 0L
+                            }
+                            val existingThumbnailPath = (latestEntry?.thumbnailPath ?: existingEntry?.thumbnailPath)?.takeIf {
+                                !it.isNullOrBlank() && File(it).exists()
+                            }
+                            val resolvedThumbnailPath = captured.thumbnailPath ?: existingThumbnailPath
+                            val captureFailed = captured.durationMs <= 0L && captured.thumbnailPath.isNullOrBlank()
+                            synchronized(metadataRetryLock) {
+                                if (!shouldRetryNow) {
+                                } else if (captureFailed) {
+                                    metadataRetryAfterMs[retryKey] = now + METADATA_RETRY_BACKOFF_MS
+                                } else {
+                                    metadataRetryAfterMs.remove(retryKey)
+                                }
                             }
                             val entity = WebDavVideoMetadataEntity(
                                 serverId = server.id,
                                 href = item.href,
-                                durationMs = durationMs,
-                                thumbnailPath = synchronized(existingLock) { existing[item.href]?.thumbnailPath },
-                                width = item.width ?: 0,
-                                height = item.height ?: 0,
-                                updatedAt = System.currentTimeMillis(),
+                                durationMs = resolvedDurationMs,
+                                thumbnailPath = resolvedThumbnailPath,
+                                width = item.width ?: captured.width ?: 0,
+                                height = item.height ?: captured.height ?: 0,
+                                updatedAt = now,
                             )
-                            webDavVideoMetadataDao.upsertAll(listOf(entity))
-                            synchronized(existingLock) {
-                                existing[entity.href] = entity
-                            }
-                            1
-                        }
-                    }
-                }
-            } else {
-                emptyList()
-            }
-
-            val itemsToRefresh = localThumbItems.filter { item ->
-                val cached = existing[item.href]
-                val thumbnailPath = cached?.thumbnailPath
-                when {
-                    cached == null -> true
-                    cached.durationMs <= 0L -> true
-                    thumbnailPath.isNullOrBlank() -> true
-                    !File(thumbnailPath).exists() -> true
-                    else -> false
-                }
-            }
-            if (itemsToRefresh.isEmpty()) {
-                durationProbeJobs.awaitAll()
-                return@withContext apiThumbItems.isNotEmpty()
-            }
-
-            val semaphore = Semaphore(metadataConcurrency())
-            val entities = itemsToRefresh.map { item ->
-                async {
-                    semaphore.withPermit {
-                        currentCoroutineContext().ensureActive()
-                        val existingEntry = existing[item.href]
-                        val retryKey = "${server.id}|${item.href}"
-                        val shouldRetryNow = synchronized(metadataRetryLock) {
-                            (metadataRetryAfterMs[retryKey] ?: 0L) <= now
-                        }
-                        val captured = if (shouldRetryNow) {
-                            try {
-                                captureMetadata(server, item)
-                            } catch (e: Exception) {
-                                if (e is CancellationException) throw e
-                                Log.w(TAG, "captureMetadata: unhandled exception server=${server.id} href=${item.href}", e)
-                                CapturedMetadata(durationMs = 0L, thumbnailPath = null)
-                            }
-                        } else {
-                            CapturedMetadata(durationMs = 0L, thumbnailPath = null)
-                        }
-                        val latestEntry = synchronized(existingLock) { existing[item.href] }
-                        val resolvedDurationMs = when {
-                            captured.durationMs > 0L -> captured.durationMs
-                            (latestEntry?.durationMs ?: 0L) > 0L -> latestEntry?.durationMs ?: 0L
-                            (existingEntry?.durationMs ?: 0L) > 0L -> existingEntry?.durationMs ?: 0L
-                            else -> 0L
-                        }
-                        val existingThumbnailPath = (latestEntry?.thumbnailPath ?: existingEntry?.thumbnailPath)?.takeIf {
-                            !it.isNullOrBlank() && File(it).exists()
-                        }
-                        val resolvedThumbnailPath = captured.thumbnailPath ?: existingThumbnailPath
-                        val captureFailed = captured.durationMs <= 0L && captured.thumbnailPath.isNullOrBlank()
-                        synchronized(metadataRetryLock) {
-                            if (!shouldRetryNow) {
-
-                            } else if (captureFailed) {
-                                metadataRetryAfterMs[retryKey] = now + METADATA_RETRY_BACKOFF_MS
-                            } else {
-                                metadataRetryAfterMs.remove(retryKey)
-                            }
-                        }
-                        val entity = WebDavVideoMetadataEntity(
-                            serverId = server.id,
-                            href = item.href,
-                            durationMs = resolvedDurationMs,
-                            thumbnailPath = resolvedThumbnailPath,
-                            width = item.width ?: captured.width ?: 0,
-                            height = item.height ?: captured.height ?: 0,
-                            updatedAt = now,
-                        )
-                        runCatching {
-                            webDavVideoMetadataDao.upsertAll(listOf(entity))
-                            synchronized(existingLock) {
-                                existing[entity.href] = entity
-                            }
-                        }.onFailure { e ->
-                            Log.w(TAG, "cacheMissingMetadata: upsert failed server=${server.id} href=${item.href}", e)
-                        }
-                        if (resolvedDurationMs > 0L || !resolvedThumbnailPath.isNullOrBlank()) {
                             runCatching {
-                                if (!resolvedThumbnailPath.isNullOrBlank()) {
-                                    val thumbnailCacheKey = if (resolvedThumbnailPath.startsWith(
-                                            "http://", true,
-                                        ) || resolvedThumbnailPath.startsWith("https://", true)
-                                    ) {
-                                        resolvedThumbnailPath
-                                    } else {
-                                        Uri.fromFile(File(resolvedThumbnailPath)).toString()
+                                webDavVideoMetadataDao.upsertAll(listOf(entity))
+                                synchronized(existingLock) {
+                                    existing[entity.href] = entity
+                                }
+                            }.onFailure { e ->
+                                Log.w(TAG, "cacheMissingMetadata: upsert failed server=${server.id} href=${item.href}", e)
+                            }
+                            if (resolvedDurationMs > 0L || !resolvedThumbnailPath.isNullOrBlank()) {
+                                runCatching {
+                                    if (!resolvedThumbnailPath.isNullOrBlank()) {
+                                        val thumbnailCacheKey = if (resolvedThumbnailPath.startsWith(
+                                                "http://",
+                                                true,
+                                            ) ||
+                                            resolvedThumbnailPath.startsWith("https://", true)
+                                        ) {
+                                            resolvedThumbnailPath
+                                        } else {
+                                            Uri.fromFile(File(resolvedThumbnailPath)).toString()
+                                        }
+                                        imageLoader.memoryCache?.remove(MemoryCache.Key(thumbnailCacheKey))
                                     }
-                                    imageLoader.memoryCache?.remove(MemoryCache.Key(thumbnailCacheKey))
                                 }
                             }
+                            entity
                         }
-                        entity
                     }
-                }
-            }.awaitAll()
+                }.awaitAll()
 
-            durationProbeJobs.awaitAll()
-            return@withContext apiThumbItems.isNotEmpty() || entities.isNotEmpty()
+                durationProbeJobs.awaitAll()
+                return@withContext apiThumbItems.isNotEmpty() || entities.isNotEmpty()
             }
         } finally {
             synchronized(metadataInFlightLock) {
@@ -461,7 +462,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
                 ThumbnailGenerationStrategy.FRAME_AT_PERCENTAGE -> thumbnailFramePosition
                 ThumbnailGenerationStrategy.HYBRID -> 0.00f
             }
-            val strategyLabel = "${thumbnailGenerationStrategy} target=${(targetPercent * 100).toInt()}%"
+            val strategyLabel = "$thumbnailGenerationStrategy target=${(targetPercent * 100).toInt()}%"
 
             val binaryResult = try {
                 kotlinx.coroutines.withTimeout(15000L) {
@@ -481,7 +482,6 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
 
             val finalResult = if (thumbnailGenerationStrategy == ThumbnailGenerationStrategy.HYBRID && binaryResult != null) {
                 if (binaryResult.bitmap.isSolidColor()) {
-
                     val retryResult = try {
                         kotlinx.coroutines.withTimeout(15000L) {
                             mp4KeyframeExtractor.extractKeyframeWithMetadata(streamUrl, thumbnailFramePosition)
@@ -519,7 +519,6 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
                 }
             }
             val elapsed = System.currentTimeMillis() - binaryStartMs
-
         }
 
         if (shouldSkipRemoteRetriever(streamUrl)) {
@@ -581,7 +580,6 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
         thumbnailGenerationStrategy: com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy,
         thumbnailFramePosition: Float,
     ): CapturedMetadata {
-
         val nativeResult = MediaMetadataRetriever().useRetriever { nativeRetriever ->
             if (!runCatching { nativeRetriever.setDataSource(dataSourceUrl, headers) }.isSuccess) {
                 return@useRetriever null
@@ -598,7 +596,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
             }.getOrNull()?.takeIf { it > 0 }
 
             val embedded = decodeEmbeddedPicture(
-                runCatching { nativeRetriever.embeddedPicture }.getOrNull()
+                runCatching { nativeRetriever.embeddedPicture }.getOrNull(),
             )
             if (embedded != null) {
                 return@useRetriever NativeResult(durationMs, thumbnail = embedded, width = nativeWidth, height = nativeHeight)
@@ -634,10 +632,12 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
             val ffmpegDurationMs = if (nativeDurationMs <= 0L) {
                 runCatching { ffmpegRetriever.getFrameAtTime(0) }
                 0L
-            } else nativeDurationMs
+            } else {
+                nativeDurationMs
+            }
 
             val embedded = decodeEmbeddedPicture(
-                runCatching { ffmpegRetriever.getEmbeddedPicture() }.getOrNull()
+                runCatching { ffmpegRetriever.getEmbeddedPicture() }.getOrNull(),
             )
             if (embedded != null) return@useFfmpeg embedded
 
@@ -684,54 +684,55 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
         framePosition: Float,
         isNative: Boolean,
         nativeFrameTarget: Pair<Int, Int>? = null,
-    ): Bitmap? {
-        return when (strategy) {
-            com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy.FIRST_FRAME -> {
-                if (isNative && nativeRetriever != null) {
-                    nativeRetriever.getFrameAtTimeScaled(0, nativeFrameTarget)
-                } else if (!isNative && ffmpegRetriever != null) {
-                    runCatching { ffmpegRetriever.getFrameAtTime(0) }.getOrNull()
-                } else null
+    ): Bitmap? = when (strategy) {
+        com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy.FIRST_FRAME -> {
+            if (isNative && nativeRetriever != null) {
+                nativeRetriever.getFrameAtTimeScaled(0, nativeFrameTarget)
+            } else if (!isNative && ffmpegRetriever != null) {
+                runCatching { ffmpegRetriever.getFrameAtTime(0) }.getOrNull()
+            } else {
+                null
             }
-            com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy.FRAME_AT_PERCENTAGE -> {
-                val timeUs = (durationMs * framePosition * 1000).toLong()
-                if (isNative && nativeRetriever != null) {
+        }
+        com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy.FRAME_AT_PERCENTAGE -> {
+            val timeUs = (durationMs * framePosition * 1000).toLong()
+            if (isNative && nativeRetriever != null) {
+                nativeRetriever.getFrameAtTimeScaled(timeUs, nativeFrameTarget)
+            } else if (!isNative && ffmpegRetriever != null) {
+                runCatching { ffmpegRetriever.getFrameAtTime(timeUs) }.getOrNull()
+            } else {
+                null
+            }
+        }
+        com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy.HYBRID -> {
+            if (isNative && nativeRetriever != null) {
+                val probeFrame = nativeRetriever.getFrameAtTimeScaled(
+                    timeUs = 0,
+                    target = SOLID_PROBE_FRAME_SIZE to SOLID_PROBE_FRAME_SIZE,
+                )
+                val isProbeSolid = probeFrame?.let { probe ->
+                    val solid = isSolidColor(probe)
+                    probe.recycle()
+                    solid
+                } ?: true
+
+                if (isProbeSolid) {
+                    val timeUs = (durationMs * framePosition * 1000).toLong()
                     nativeRetriever.getFrameAtTimeScaled(timeUs, nativeFrameTarget)
-                } else if (!isNative && ffmpegRetriever != null) {
-                    runCatching { ffmpegRetriever.getFrameAtTime(timeUs) }.getOrNull()
-                } else null
-            }
-            com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy.HYBRID -> {
-                if (isNative && nativeRetriever != null) {
-                    val probeFrame = nativeRetriever.getFrameAtTimeScaled(
-                        timeUs = 0,
-                        target = SOLID_PROBE_FRAME_SIZE to SOLID_PROBE_FRAME_SIZE,
-                    )
-                    val isProbeSolid = probeFrame?.let { probe ->
-                        val solid = isSolidColor(probe)
-                        probe.recycle()
-                        solid
-                    } ?: true
-
-                    if (isProbeSolid) {
-                        val timeUs = (durationMs * framePosition * 1000).toLong()
-                        nativeRetriever.getFrameAtTimeScaled(timeUs, nativeFrameTarget)
-                            ?: nativeRetriever.getFrameAtTimeScaled(0, nativeFrameTarget)
-                    } else {
-                        nativeRetriever.getFrameAtTimeScaled(0, nativeFrameTarget)
-                    }
-                } else if (!isNative && ffmpegRetriever != null) {
-                    val firstFrame = runCatching { ffmpegRetriever.getFrameAtTime(0) }.getOrNull()
-                    if (firstFrame != null && !isSolidColor(firstFrame)) {
-                        firstFrame
-                    } else {
-                        val timeUs = (durationMs * framePosition * 1000).toLong()
-                        runCatching { ffmpegRetriever.getFrameAtTime(timeUs) }.getOrNull() ?: firstFrame
-                    }
+                        ?: nativeRetriever.getFrameAtTimeScaled(0, nativeFrameTarget)
                 } else {
-                    null
+                    nativeRetriever.getFrameAtTimeScaled(0, nativeFrameTarget)
                 }
-
+            } else if (!isNative && ffmpegRetriever != null) {
+                val firstFrame = runCatching { ffmpegRetriever.getFrameAtTime(0) }.getOrNull()
+                if (firstFrame != null && !isSolidColor(firstFrame)) {
+                    firstFrame
+                } else {
+                    val timeUs = (durationMs * framePosition * 1000).toLong()
+                    runCatching { ffmpegRetriever.getFrameAtTime(timeUs) }.getOrNull() ?: firstFrame
+                }
+            } else {
+                null
             }
         }
     }
@@ -852,8 +853,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
         }
     }
 
-    private fun saveFirstFrame(serverId: Int, href: String, frame: Bitmap): String? =
-        saveThumbnailBitmap("$serverId|$href", frame)
+    private fun saveFirstFrame(serverId: Int, href: String, frame: Bitmap): String? = saveThumbnailBitmap("$serverId|$href", frame)
 
     private fun saveThumbnailBitmap(cacheKey: String, frame: Bitmap): String? = runCatching {
         val resized = try {
@@ -879,8 +879,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
 
     private fun cloudThumbnailCacheDir(): File = File(context.cacheDir, CLOUD_THUMBNAILS_DIR).apply { mkdirs() }
 
-    private fun thumbnailFile(cacheKey: String, extension: String = THUMBNAIL_EXTENSION): File =
-        File(cloudThumbnailCacheDir(), "${sha256(cacheKey)}.$extension")
+    private fun thumbnailFile(cacheKey: String, extension: String = THUMBNAIL_EXTENSION): File = File(cloudThumbnailCacheDir(), "${sha256(cacheKey)}.$extension")
 
     private fun existingThumbnailFile(cacheKey: String): File {
         val webpFile = thumbnailFile(cacheKey)
@@ -970,8 +969,7 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
         private const val METADATA_RETRY_BACKOFF_MS = 3 * 60 * 1000L
         private val BINARY_MP4_EXTENSIONS = setOf("mp4", "mov", "m4v")
 
-        private fun isRemoteHttpUrl(url: String): Boolean =
-            url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)
+        private fun isRemoteHttpUrl(url: String): Boolean = url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)
 
         private fun metadataConcurrency(): Int {
             val maxHeapMb = Runtime.getRuntime().maxMemory() / (1024 * 1024)

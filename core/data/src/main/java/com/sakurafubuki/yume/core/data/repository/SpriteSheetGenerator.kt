@@ -11,16 +11,16 @@ import android.media.MediaFormat
 import android.net.Uri
 import android.util.Log
 import com.sakurafubuki.yume.core.common.Logger
+import java.io.File
+import java.io.FileOutputStream
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import java.io.File
-import java.io.FileOutputStream
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
 
 object SpriteSheetGenerator {
 
@@ -56,8 +56,8 @@ object SpriteSheetGenerator {
     ): SpriteSheetResult? = withContext(Dispatchers.IO) {
         try {
             cacheDir.mkdirs()
-            val spriteFile = File(cacheDir, "${cacheKey}.webp")
-            val metaFile = File(cacheDir, "${cacheKey}.json")
+            val spriteFile = File(cacheDir, "$cacheKey.webp")
+            val metaFile = File(cacheDir, "$cacheKey.json")
 
             if (spriteFile.exists() && spriteFile.length() > 0 && metaFile.exists()) {
                 val meta = readMetadata(metaFile)
@@ -81,13 +81,10 @@ object SpriteSheetGenerator {
                 sourcePath.endsWith(".webm", ignoreCase = true)
 
             if (isMp4 && (isRemote || !isContentUri)) {
-
                 generateFromMoov(source, httpHeaders, durationMs, cacheDir, cacheKey)
             } else if (isRemote && isMkv) {
-
                 generateFromMkv(source, httpHeaders, durationMs, cacheDir, cacheKey, context)
             } else {
-
                 generateFromMediaExtractor(source, durationMs, spriteFile, metaFile, cacheDir, cacheKey, context)
             }
         } catch (e: Exception) {
@@ -106,8 +103,8 @@ object SpriteSheetGenerator {
         val isLocal = !source.startsWith("http://", ignoreCase = true) &&
             !source.startsWith("https://", ignoreCase = true)
 
-        val spriteFile = File(cacheDir, "${cacheKey}.webp")
-        val metaFile = File(cacheDir, "${cacheKey}.json")
+        val spriteFile = File(cacheDir, "$cacheKey.webp")
+        val metaFile = File(cacheDir, "$cacheKey.json")
 
         android.util.Log.d("BUG4_SpriteSheet", "generateFromMoov: isLocal=$isLocal source=${source.take(100)} httpHeaders=$httpHeaders")
         val okHttpClient = if (isLocal) OkHttpClient() else buildOkHttpClient(httpHeaders)
@@ -143,9 +140,12 @@ object SpriteSheetGenerator {
         val (thumbW, thumbH) = computeThumbDimensions(displayW, displayH)
 
         val (scaleW, scaleH) = computeThumbDimensions(moovInfo.width, moovInfo.height)
-        Logger.d(TAG, "Moov parsed: ${allKeyframes.size} keyframes, codec=${moovInfo.codecType}, " +
-            "video=${moovInfo.width}x${moovInfo.height} rotation=${moovInfo.rotation}° thumb=${thumbW}x${thumbH} " +
-            "scale=${scaleW}x${scaleH}, local=$isLocal")
+        Logger.d(
+            TAG,
+            "Moov parsed: ${allKeyframes.size} keyframes, codec=${moovInfo.codecType}, " +
+                "video=${moovInfo.width}x${moovInfo.height} rotation=${moovInfo.rotation}° thumb=${thumbW}x$thumbH " +
+                "scale=${scaleW}x$scaleH, local=$isLocal",
+        )
 
         val startTime = System.currentTimeMillis()
 
@@ -218,10 +218,14 @@ object SpriteSheetGenerator {
                 val target = successEntries.getOrNull(frameIndex)?.first ?: return@decodeKeyframesRawImage
 
                 val forceNV21 = codecName.startsWith("OMX.qcom.", ignoreCase = true)
-                val midW = scaleW * 2; val midH = scaleH * 2
-                val scaled = YuvToBitmapBridge.scaleTwoPassFromImage(image,
-                    midWidth = midW, midHeight = midH,
-                    dstWidth = scaleW, dstHeight = scaleH,
+                val midW = scaleW * 2
+                val midH = scaleH * 2
+                val scaled = YuvToBitmapBridge.scaleTwoPassFromImage(
+                    image,
+                    midWidth = midW,
+                    midHeight = midH,
+                    dstWidth = scaleW,
+                    dstHeight = scaleH,
                     forceNV21 = forceNV21,
                 ) ?: return@decodeKeyframesRawImage
 
@@ -242,7 +246,14 @@ object SpriteSheetGenerator {
                     val matrix = android.graphics.Matrix()
                     matrix.postRotate(moovInfo.rotation.toFloat())
                     val rotated = android.graphics.Bitmap.createBitmap(
-                        bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                        bitmap,
+                        0,
+                        0,
+                        bitmap.width,
+                        bitmap.height,
+                        matrix,
+                        true,
+                    )
                     bitmap.recycle()
                     bitmap = rotated
                 }
@@ -255,7 +266,7 @@ object SpriteSheetGenerator {
                 bitmap.recycle()
             }
         }
-        Logger.d(TAG, "Decoded+scaled+composited ${framesDownloaded}/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
+        Logger.d(TAG, "Decoded+scaled+composited $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
         android.util.Log.d("BUG4_SpriteSheet", "Decoded $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
 
         if (framesDownloaded == 0) {
@@ -274,8 +285,11 @@ object SpriteSheetGenerator {
         metadata.saveTo(metaFile)
 
         val totalElapsed = System.currentTimeMillis() - startTime
-        Logger.d(TAG, "Saved ${spriteFile.length() / 1024}KB in ${System.currentTimeMillis() - saveStart}ms. " +
-            "Total: ${totalElapsed}ms, ${framesDownloaded} frames, ${bytesDownloaded / 1024}KB downloaded")
+        Logger.d(
+            TAG,
+            "Saved ${spriteFile.length() / 1024}KB in ${System.currentTimeMillis() - saveStart}ms. " +
+                "Total: ${totalElapsed}ms, $framesDownloaded frames, ${bytesDownloaded / 1024}KB downloaded",
+        )
         android.util.Log.d("BUG4_SpriteSheet", "SUCCESS: ${spriteFile.length() / 1024}KB sprite sheet in ${totalElapsed}ms")
         return SpriteSheetResult(spriteFile, metadata)
     }
@@ -288,8 +302,8 @@ object SpriteSheetGenerator {
         cacheKey: String,
         context: Context? = null,
     ): SpriteSheetResult? {
-        val spriteFile = File(cacheDir, "${cacheKey}.webp")
-        val metaFile = File(cacheDir, "${cacheKey}.json")
+        val spriteFile = File(cacheDir, "$cacheKey.webp")
+        val metaFile = File(cacheDir, "$cacheKey.json")
 
         android.util.Log.d("BUG4_SpriteSheet", "generateFromMkv: source=${source.take(100)}")
         val okHttpClient = buildOkHttpClient(httpHeaders)
@@ -321,8 +335,11 @@ object SpriteSheetGenerator {
         }
         val (thumbW, thumbH) = computeThumbDimensions(displayW, displayH)
         val (scaleW, scaleH) = computeThumbDimensions(moovInfo.width, moovInfo.height)
-        Logger.d(TAG, "MKV parsed: ${allKeyframes.size} keyframes, codec=${moovInfo.codecType}, " +
-            "video=${moovInfo.width}x${moovInfo.height} thumb=${thumbW}x${thumbH} scale=${scaleW}x${scaleH}")
+        Logger.d(
+            TAG,
+            "MKV parsed: ${allKeyframes.size} keyframes, codec=${moovInfo.codecType}, " +
+                "video=${moovInfo.width}x${moovInfo.height} thumb=${thumbW}x$thumbH scale=${scaleW}x$scaleH",
+        )
 
         val startTime = System.currentTimeMillis()
 
@@ -372,7 +389,11 @@ object SpriteSheetGenerator {
                 batch.map { target ->
                     async {
                         val data = mkvExtractor.downloadMkvKeyframe(
-                            source, target.kf.byteOffset, target.kf.byteSize, trackNumber)
+                            source,
+                            target.kf.byteOffset,
+                            target.kf.byteSize,
+                            trackNumber,
+                        )
                         if (data != null) bytesDownloaded += data.size
                         target to data
                     }
@@ -392,10 +413,14 @@ object SpriteSheetGenerator {
                 val target = successEntries.getOrNull(frameIndex)?.first ?: return@decodeKeyframesRawImage
 
                 val forceNV21 = codecName.startsWith("OMX.qcom.", ignoreCase = true)
-                val midW = scaleW * 2; val midH = scaleH * 2
-                val scaled = YuvToBitmapBridge.scaleTwoPassFromImage(image,
-                    midWidth = midW, midHeight = midH,
-                    dstWidth = scaleW, dstHeight = scaleH,
+                val midW = scaleW * 2
+                val midH = scaleH * 2
+                val scaled = YuvToBitmapBridge.scaleTwoPassFromImage(
+                    image,
+                    midWidth = midW,
+                    midHeight = midH,
+                    dstWidth = scaleW,
+                    dstHeight = scaleH,
                     forceNV21 = forceNV21,
                 ) ?: return@decodeKeyframesRawImage
 
@@ -416,7 +441,14 @@ object SpriteSheetGenerator {
                     val matrix = android.graphics.Matrix()
                     matrix.postRotate(moovInfo.rotation.toFloat())
                     val rotated = android.graphics.Bitmap.createBitmap(
-                        bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                        bitmap,
+                        0,
+                        0,
+                        bitmap.width,
+                        bitmap.height,
+                        matrix,
+                        true,
+                    )
                     bitmap.recycle()
                     bitmap = rotated
                 }
@@ -429,7 +461,7 @@ object SpriteSheetGenerator {
                 bitmap.recycle()
             }
         }
-        Logger.d(TAG, "MKV decoded+scaled+composited ${framesDownloaded}/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
+        Logger.d(TAG, "MKV decoded+scaled+composited $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
         android.util.Log.d("BUG4_SpriteSheet", "MKV decoded $framesDownloaded/${successEntries.size} frames in ${System.currentTimeMillis() - decodeStart}ms")
 
         if (framesDownloaded == 0) {
@@ -448,30 +480,30 @@ object SpriteSheetGenerator {
         metadata.saveTo(metaFile)
 
         val totalElapsed = System.currentTimeMillis() - startTime
-        Logger.d(TAG, "MKV saved ${spriteFile.length() / 1024}KB in ${System.currentTimeMillis() - saveStart}ms. " +
-            "Total: ${totalElapsed}ms, ${framesDownloaded} frames, ${bytesDownloaded / 1024}KB downloaded")
+        Logger.d(
+            TAG,
+            "MKV saved ${spriteFile.length() / 1024}KB in ${System.currentTimeMillis() - saveStart}ms. " +
+                "Total: ${totalElapsed}ms, $framesDownloaded frames, ${bytesDownloaded / 1024}KB downloaded",
+        )
         android.util.Log.d("BUG4_SpriteSheet", "MKV SUCCESS: ${spriteFile.length() / 1024}KB sprite sheet in ${totalElapsed}ms")
         return SpriteSheetResult(spriteFile, metadata)
     }
 
-    private fun buildOkHttpClient(httpHeaders: Map<String, String>?): OkHttpClient {
-        return OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(60, TimeUnit.SECONDS)
-            .apply {
-                if (httpHeaders != null) {
-                    addInterceptor { chain ->
-                        var request = chain.request()
-                        for ((key, value) in httpHeaders) {
-
-                            request = request.newBuilder().header(key, value).build()
-                        }
-                        chain.proceed(request)
+    private fun buildOkHttpClient(httpHeaders: Map<String, String>?): OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .apply {
+            if (httpHeaders != null) {
+                addInterceptor { chain ->
+                    var request = chain.request()
+                    for ((key, value) in httpHeaders) {
+                        request = request.newBuilder().header(key, value).build()
                     }
+                    chain.proceed(request)
                 }
             }
-            .build()
-    }
+        }
+        .build()
 
     private fun generateFromMediaExtractor(
         source: String,
@@ -509,13 +541,24 @@ object SpriteSheetGenerator {
         val trackFormat = extractor.getTrackFormat(videoTrackIndex)
 
         val mime = trackFormat.getString(MediaFormat.KEY_MIME)
-            ?: run { extractor.release(); return null }
+            ?: run {
+                extractor.release()
+                return null
+            }
         val codecName = findBestDecoderForMime(mime)
-            ?: run { extractor.release(); Log.w(TAG, "No decoder for $mime"); return null }
+            ?: run {
+                extractor.release()
+                Log.w(TAG, "No decoder for $mime")
+                return null
+            }
 
         val encodedW = trackFormat.getInteger(MediaFormat.KEY_WIDTH, 0)
         val encodedH = trackFormat.getInteger(MediaFormat.KEY_HEIGHT, 0)
-        val rotation = try { trackFormat.getInteger("rotation-degrees") } catch (_: Exception) { 0 }
+        val rotation = try {
+            trackFormat.getInteger("rotation-degrees")
+        } catch (_: Exception) {
+            0
+        }
         val needsRot = rotation == 90 || rotation == 270
         val displayW = if (needsRot) encodedH else encodedW
         val displayH = if (needsRot) encodedW else encodedH
@@ -560,11 +603,15 @@ object SpriteSheetGenerator {
                 val row = i / gridCols
 
                 val isQcom = codecName.startsWith("OMX.qcom.", ignoreCase = true)
-                val midW = scaleW * 2; val midH = scaleH * 2
+                val midW = scaleW * 2
+                val midH = scaleH * 2
                 decodeOneFrameToImage(codec, extractor) { image, outputFormat ->
-                    val scaled = YuvToBitmapBridge.scaleTwoPassFromImage(image,
-                        midWidth = midW, midHeight = midH,
-                        dstWidth = scaleW, dstHeight = scaleH,
+                    val scaled = YuvToBitmapBridge.scaleTwoPassFromImage(
+                        image,
+                        midWidth = midW,
+                        midHeight = midH,
+                        dstWidth = scaleW,
+                        dstHeight = scaleH,
                         forceNV21 = isQcom,
                     ) ?: return@decodeOneFrameToImage
 
@@ -585,7 +632,14 @@ object SpriteSheetGenerator {
                         val matrix = android.graphics.Matrix()
                         matrix.postRotate(rotation.toFloat())
                         val rotated = android.graphics.Bitmap.createBitmap(
-                            bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                            bitmap,
+                            0,
+                            0,
+                            bitmap.width,
+                            bitmap.height,
+                            matrix,
+                            true,
+                        )
                         bitmap.recycle()
                         bitmap = rotated
                     }
@@ -675,7 +729,6 @@ object SpriteSheetGenerator {
                         outputFormat = codec.outputFormat
                     }
                     outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> {
-
                     }
                     else -> {
                         Log.w(TAG, "Unexpected dequeue result: $outputIndex")
@@ -715,14 +768,11 @@ object SpriteSheetGenerator {
         return COLS to ROWS
     }
 
-    private fun readMetadata(file: File): SpriteSheetMetadata? {
-        return try {
-            SpriteSheetMetadata.fromJson(file.readText())
-        } catch (_: Exception) {
-            null
-        }
+    private fun readMetadata(file: File): SpriteSheetMetadata? = try {
+        SpriteSheetMetadata.fromJson(file.readText())
+    } catch (_: Exception) {
+        null
     }
-
 }
 
 data class SpriteSheetMetadata(

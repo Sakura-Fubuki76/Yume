@@ -39,7 +39,7 @@ class VideoInfoState(private val player: Player) {
         private set
 
     val isReady: Boolean get() = width > 0 || codecs != null
-    val resolutionFormatted: String get() = if (width > 0 && height > 0) "${width}×${height}" else ""
+    val resolutionFormatted: String get() = if (width > 0 && height > 0) "$width×$height" else ""
     val bitrateFormatted: String?
         get() {
             if (bitrate == Format.NO_VALUE || bitrate <= 0) return null

@@ -13,8 +13,7 @@ class DebandEffect(
 ) : GlEffect {
 
     @UnstableApi
-    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram =
-        BilateralDebandShaderProgram(useHdr, threshold, strength, radius)
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = BilateralDebandShaderProgram(useHdr, threshold, strength, radius)
 
     override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = false
 }

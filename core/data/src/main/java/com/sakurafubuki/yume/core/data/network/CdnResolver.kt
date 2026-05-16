@@ -1,18 +1,18 @@
 package com.sakurafubuki.yume.core.data.network
 
 import com.sakurafubuki.yume.core.model.CdnNode
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.URL
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 class CdnResolver @Inject constructor() {
 
@@ -70,16 +70,14 @@ class CdnResolver @Inject constructor() {
         }
     }
 
-    fun measureLatency(ip: String, port: Int, timeoutMs: Int = tcpTimeoutMs): Long {
-        return try {
-            val start = System.currentTimeMillis()
-            Socket().use { socket ->
-                socket.connect(InetSocketAddress(ip, port), timeoutMs)
-            }
-            System.currentTimeMillis() - start
-        } catch (_: Exception) {
-            Long.MAX_VALUE
+    fun measureLatency(ip: String, port: Int, timeoutMs: Int = tcpTimeoutMs): Long = try {
+        val start = System.currentTimeMillis()
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress(ip, port), timeoutMs)
         }
+        System.currentTimeMillis() - start
+    } catch (_: Exception) {
+        Long.MAX_VALUE
     }
 
     suspend fun scan(hostname: String, port: Int = 443): List<CdnNode> = coroutineScope {

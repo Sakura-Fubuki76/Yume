@@ -5,7 +5,6 @@ import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.annotation.DelicateCoilApi
-import dagger.hilt.android.HiltAndroidApp
 import com.sakurafubuki.yume.BuildConfig
 import com.sakurafubuki.yume.core.cache.ImageCacheManager
 import com.sakurafubuki.yume.core.common.Logger
@@ -14,6 +13,7 @@ import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.SpriteSheetCache
 import com.sakurafubuki.yume.crash.CrashActivity
 import com.sakurafubuki.yume.crash.GlobalExceptionHandler
+import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch

@@ -3,8 +3,6 @@ package com.sakurafubuki.yume.feature.player.service
 import android.app.PendingIntent
 import android.content.ContentResolver
 import android.content.Intent
-import com.sakurafubuki.yume.core.common.Logger
-import com.sakurafubuki.yume.core.common.Utils
 import android.media.audiofx.LoudnessEnhancer
 import android.net.Uri
 import android.os.Bundle
@@ -26,8 +24,8 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
-import androidx.media3.exoplayer.LoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.LoadControl
 import androidx.media3.exoplayer.analytics.PlayerId
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.TrackGroupArray
@@ -45,30 +43,30 @@ import androidx.media3.session.SessionResult
 import coil3.ImageLoader
 import coil3.request.ImageRequest
 import com.google.common.util.concurrent.ListenableFuture
-import dagger.hilt.android.AndroidEntryPoint
+import com.sakurafubuki.yume.core.common.Logger
+import com.sakurafubuki.yume.core.common.Utils
 import com.sakurafubuki.yume.core.common.extensions.deleteFiles
 import com.sakurafubuki.yume.core.common.extensions.fuzzyTitleMatch
-import com.sakurafubuki.yume.core.ui.R as coreUiR
 import com.sakurafubuki.yume.core.common.extensions.getFilenameFromUri
 import com.sakurafubuki.yume.core.common.extensions.getLocalSubtitles
 import com.sakurafubuki.yume.core.common.extensions.getPath
 import com.sakurafubuki.yume.core.common.extensions.subtitleCacheDir
 import com.sakurafubuki.yume.core.data.openlist.OpenListApi
 import com.sakurafubuki.yume.core.data.repository.CloudVideoMetadataRepository
-import com.sakurafubuki.yume.core.model.CloudVideoMetadata
 import com.sakurafubuki.yume.core.data.repository.MediaRepository
-import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.MoovIndexCache
+import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
+import com.sakurafubuki.yume.core.model.Anime4KRestoreMode
+import com.sakurafubuki.yume.core.model.CloudVideoMetadata
 import com.sakurafubuki.yume.core.model.DecoderPriority
 import com.sakurafubuki.yume.core.model.LoopMode
 import com.sakurafubuki.yume.core.model.PlayerPreferences
 import com.sakurafubuki.yume.core.model.Resume
 import com.sakurafubuki.yume.core.model.WebDavServer
-import com.sakurafubuki.yume.core.model.Anime4KRestoreMode
+import com.sakurafubuki.yume.core.ui.R as coreUiR
 import com.sakurafubuki.yume.feature.player.PlayerActivity
 import com.sakurafubuki.yume.feature.player.R
-
 import com.sakurafubuki.yume.feature.player.audio.SoundTouchRenderersFactory
 import com.sakurafubuki.yume.feature.player.effect.Anime4KClampHighlightsEffect
 import com.sakurafubuki.yume.feature.player.effect.Anime4KRestoreEffect
@@ -89,6 +87,7 @@ import com.sakurafubuki.yume.feature.player.extensions.switchTrack
 import com.sakurafubuki.yume.feature.player.extensions.uriToSubtitleConfiguration
 import com.sakurafubuki.yume.feature.player.extensions.videoZoom
 import com.sakurafubuki.yume.feature.player.network.CdnDns
+import dagger.hilt.android.AndroidEntryPoint
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
 import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 import java.io.File
@@ -119,6 +118,7 @@ class PlayerService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var artworkLoadJob: Job? = null
     private var prebufferJob: Job? = null
+
     @Volatile
     private var prebufferKey: String? = null
     private var loadControl: ScrubbingAwareLoadControl? = null
@@ -418,7 +418,6 @@ class PlayerService : MediaSessionService() {
                     }
                 }
             } catch (_: Exception) {
-
             }
         }
     }
@@ -431,7 +430,6 @@ class PlayerService : MediaSessionService() {
         val currentPosMs = player.currentPosition
         if (currentPosMs <= 0) return
         scrubPrefetchJob = serviceScope.launch(Dispatchers.IO) {
-
             val keyframe = MoovIndexCache.findNearestKeyframe(url, currentPosMs)
                 ?: return@launch
 
@@ -447,13 +445,11 @@ class PlayerService : MediaSessionService() {
                     }
                 }
             } catch (_: Exception) {
-
             }
         }
     }
 
-    private fun String.isHttpUrl(): Boolean =
-        startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
+    private fun String.isHttpUrl(): Boolean = startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
 
     private fun drainResponseBody(body: okhttp3.ResponseBody?) {
         body?.source()?.use { source ->
@@ -690,9 +686,11 @@ class PlayerService : MediaSessionService() {
             .readTimeout(60, TimeUnit.SECONDS)
             .dispatcher(okhttp3.Dispatcher().apply { maxRequestsPerHost = 30 })
             .connectionPool(okhttp3.ConnectionPool(25, 30, TimeUnit.MINUTES))
-            .dns(CdnDns {
-                preferencesRepository.applicationPreferences.value.cdnSelections
-            })
+            .dns(
+                CdnDns {
+                    preferencesRepository.applicationPreferences.value.cdnSelections
+                },
+            )
             .addInterceptor { chain ->
                 val request = chain.request()
 
@@ -790,14 +788,14 @@ class PlayerService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(playerPreferences.pauseOnHeadsetDisconnect)
             .build()
             .also {
-        val effects = mutableListOf<androidx.media3.common.Effect>()
-        if (playerPreferences.anime4KRestoreMode != Anime4KRestoreMode.OFF) {
-            effects.add(Anime4KRestoreEffect(playerPreferences.anime4KRestoreMode))
-        }
-        if (playerPreferences.enableDeband) effects.add(DebandEffect())
-        if (playerPreferences.enableAnime4KClampHighlights) effects.add(Anime4KClampHighlightsEffect())
-        if (playerPreferences.enableDither) effects.add(DitherEffect())
-        it.setVideoEffects(effects)
+                val effects = mutableListOf<androidx.media3.common.Effect>()
+                if (playerPreferences.anime4KRestoreMode != Anime4KRestoreMode.OFF) {
+                    effects.add(Anime4KRestoreEffect(playerPreferences.anime4KRestoreMode))
+                }
+                if (playerPreferences.enableDeband) effects.add(DebandEffect())
+                if (playerPreferences.enableAnime4KClampHighlights) effects.add(Anime4KClampHighlightsEffect())
+                if (playerPreferences.enableDither) effects.add(DitherEffect())
+                it.setVideoEffects(effects)
                 it.addListener(playbackStateListener)
                 it.pauseAtEndOfMediaItems = !playerPreferences.autoplay
                 it.repeatMode = when (playerPreferences.loopMode) {
@@ -870,19 +868,24 @@ class PlayerService : MediaSessionService() {
                 val externalSubs = videoState?.externalSubs?.filter { subUri ->
                     when {
                         subUri.scheme.equals("http", ignoreCase = true) ||
-                        subUri.scheme.equals("https", ignoreCase = true) -> true
+                            subUri.scheme.equals("https", ignoreCase = true) -> true
                         else -> try {
                             contentResolver.openInputStream(subUri)?.use { true } ?: false
-                        } catch (_: Exception) { false }
+                        } catch (_: Exception) {
+                            false
+                        }
                     }
                 } ?: emptyList()
 
                 val resolvedPath = getPath(uri) ?: videoState?.path
-                Logger.d("PlayerService", "subtitleDiscovery: uri=$uri, resolvedPath=$resolvedPath, " +
-                    "getPath=${getPath(uri)}, videoStatePath=${videoState?.path}")
+                Logger.d(
+                    "PlayerService",
+                    "subtitleDiscovery: uri=$uri, resolvedPath=$resolvedPath, " +
+                        "getPath=${getPath(uri)}, videoStatePath=${videoState?.path}",
+                )
                 val localSubs = when {
                     uri.scheme.equals("http", ignoreCase = true) ||
-                    uri.scheme.equals("https", ignoreCase = true) -> {
+                        uri.scheme.equals("https", ignoreCase = true) -> {
                         probeRemoteSubtitles(uri.toString(), externalSubs)
                     }
                     else -> {
@@ -903,7 +906,9 @@ class PlayerService : MediaSessionService() {
                         else -> try {
                             val u = android.net.Uri.parse(subUri)
                             contentResolver.openInputStream(u)?.use { true } ?: false
-                        } catch (_: Exception) { false }
+                        } catch (_: Exception) {
+                            false
+                        }
                     }
                 } ?: emptyList()
 
@@ -912,7 +917,8 @@ class PlayerService : MediaSessionService() {
                 val hasPriorSubConfigSelection = existingSubConfigurations.any {
                     it.selectionFlags and C.SELECTION_FLAG_DEFAULT != 0
                 }
-                val shouldAutoSelect = !hasPriorTrackSelection && !hasPriorSubConfigSelection &&
+                val shouldAutoSelect = !hasPriorTrackSelection &&
+                    !hasPriorSubConfigSelection &&
                     playerPreferences.rememberSelections
 
                 val allSubUris = localSubs + externalSubs
@@ -921,8 +927,11 @@ class PlayerService : MediaSessionService() {
                 } else {
                     null
                 }
-                Logger.d("PlayerService", "subtitleAutoSelect: shouldAutoSelect=$shouldAutoSelect, " +
-                    "bestCandidate=$bestCandidateUri, allSubs=$allSubUris")
+                Logger.d(
+                    "PlayerService",
+                    "subtitleAutoSelect: shouldAutoSelect=$shouldAutoSelect, " +
+                        "bestCandidate=$bestCandidateUri, allSubs=$allSubUris",
+                )
 
                 val subConfigurations = allSubUris.map { subtitleUri ->
                     uriToSubtitleConfiguration(
@@ -937,7 +946,6 @@ class PlayerService : MediaSessionService() {
                 val artworkUri = when {
                     existingArtworkUri != null && !isDefaultArtwork -> existingArtworkUri
                     else -> {
-
                         val cloudThumbnail = resolveCloudVideoThumbnail(mediaItem.mediaId)
                         cloudThumbnail ?: getDefaultArtworkUri()
                     }
@@ -1014,23 +1022,20 @@ class PlayerService : MediaSessionService() {
     }.build()
 
     private suspend fun resolveCloudVideoDuration(mediaId: String): Long? {
-
         MoovIndexCache.get(mediaId)?.durationMs?.takeIf { it > 0L }?.let { return it }
         return resolveCloudVideoMetadata(mediaId)?.durationMs?.takeIf { it > 0L }
     }
 
-    private suspend fun resolveCloudVideoThumbnail(mediaId: String): android.net.Uri? {
-        return resolveCloudVideoMetadata(mediaId)?.thumbnailPath?.let { path ->
-            runCatching {
-                if (path.startsWith("http://", ignoreCase = true) ||
-                    path.startsWith("https://", ignoreCase = true)
-                ) {
-                    android.net.Uri.parse(path)
-                } else {
-                    android.net.Uri.fromFile(java.io.File(path))
-                }
-            }.getOrNull()
-        }
+    private suspend fun resolveCloudVideoThumbnail(mediaId: String): android.net.Uri? = resolveCloudVideoMetadata(mediaId)?.thumbnailPath?.let { path ->
+        runCatching {
+            if (path.startsWith("http://", ignoreCase = true) ||
+                path.startsWith("https://", ignoreCase = true)
+            ) {
+                android.net.Uri.parse(path)
+            } else {
+                android.net.Uri.fromFile(java.io.File(path))
+            }
+        }.getOrNull()
     }
 
     private suspend fun resolveCloudVideoMetadata(mediaId: String): CloudVideoMetadata? {
@@ -1122,12 +1127,16 @@ class PlayerService : MediaSessionService() {
         }
 
         val candidateExtensions = listOf("ass", "ssa", "srt", "vtt", "ttml")
-        val langSuffixes = listOf("sc", "chs", "cht", "en", "ja", "ko", "tc", "zh",
-                                   "zh-hans", "zh-hant", "gb", "fr", "de", "es", "it",
-                                   "pt", "pt-br", "ru", "ar")
+        val langSuffixes = listOf(
+            "sc", "chs", "cht", "en", "ja", "ko", "tc", "zh",
+            "zh-hans", "zh-hant", "gb", "fr", "de", "es", "it",
+            "pt", "pt-br", "ru", "ar",
+        )
         val parentPath = if (pathSegments.size > 1) {
             pathSegments.dropLast(1).joinToString("/", "/", "/")
-        } else "/"
+        } else {
+            "/"
+        }
 
         val results = mutableListOf<android.net.Uri>()
         for (ext in candidateExtensions) {
@@ -1135,7 +1144,7 @@ class PlayerService : MediaSessionService() {
         }
         for (lang in langSuffixes) {
             for (ext in listOf("ass", "ssa", "srt")) {
-                doProbeHead(url, parentPath + baseName + ".${lang}.${ext}", excludeUrls, results)
+                doProbeHead(url, parentPath + baseName + ".$lang.$ext", excludeUrls, results)
             }
         }
         Logger.d("PlayerService", "probeRemoteSubtitles: found ${results.size} remote subtitles: $results")
@@ -1152,15 +1161,20 @@ class PlayerService : MediaSessionService() {
             return emptyList()
         }
         val pathSegments = url.encodedPathSegments
-        val apiDirPath = if (pathSegments.size <= 2) "/" else {
+        val apiDirPath = if (pathSegments.size <= 2) {
+            "/"
+        } else {
             pathSegments.drop(1).dropLast(1).joinToString("/", "/", "/") { Uri.decode(it) }
         }
         Logger.d("PlayerService", "probeSubtitlesViaApi: server=${server.name}, baseName=$baseName, dir=$apiDirPath")
         val listResult = runCatching { openListApi.listDirectory(server, apiDirPath, page = 1, perPage = 2000, refresh = false) }
         val items = listResult.getOrNull()?.getOrNull()?.content.orEmpty()
-        Logger.d("PlayerService", "probeSubtitlesViaApi: listDir returned ${items.size} items, " +
-            "success=${listResult.getOrNull()?.isSuccess}, " +
-            "hasContent=${listResult.getOrNull()?.getOrNull()?.content != null}")
+        Logger.d(
+            "PlayerService",
+            "probeSubtitlesViaApi: listDir returned ${items.size} items, " +
+                "success=${listResult.getOrNull()?.isSuccess}, " +
+                "hasContent=${listResult.getOrNull()?.getOrNull()?.content != null}",
+        )
         val rootBaseUrl = Uri.parse(server.url).let { serverUri ->
             val authority = if (serverUri.port != -1) "${serverUri.host}:${serverUri.port}" else serverUri.host.orEmpty()
             "${serverUri.scheme}://$authority"
@@ -1190,7 +1204,6 @@ class PlayerService : MediaSessionService() {
         excludeUrls: Set<String>,
         results: MutableList<android.net.Uri>,
     ) {
-
         val candidateWithQuery = baseUrl.newBuilder().encodedPath(path).build()
         val candidateWithoutQuery = baseUrl.newBuilder().encodedPath(path).encodedQuery(null).build()
 
@@ -1248,9 +1261,9 @@ class PlayerService : MediaSessionService() {
         return webDavServersById.values.firstOrNull { server ->
             val serverUri = Uri.parse(server.url)
             serverUri.scheme.equals(url.scheme, ignoreCase = true) &&
-            serverUri.host.equals(url.host, ignoreCase = true) &&
-            (serverUri.port.let { if (it != -1) it else defaultPort(serverUri.scheme.orEmpty()) }) ==
-            (url.port.let { if (it != -1) it else defaultPort(url.scheme) })
+                serverUri.host.equals(url.host, ignoreCase = true) &&
+                (serverUri.port.let { if (it != -1) it else defaultPort(serverUri.scheme.orEmpty()) }) ==
+                (url.port.let { if (it != -1) it else defaultPort(url.scheme) })
         }
     }
 
@@ -1368,19 +1381,15 @@ private class ScrubbingAwareLoadControl(
         scrub.onReleased(playerId)
     }
 
-    override fun shouldStartPlayback(parameters: LoadControl.Parameters): Boolean =
-        delegate.shouldStartPlayback(parameters)
+    override fun shouldStartPlayback(parameters: LoadControl.Parameters): Boolean = delegate.shouldStartPlayback(parameters)
 
-    override fun shouldContinueLoading(parameters: LoadControl.Parameters): Boolean =
-        delegate.shouldContinueLoading(parameters)
+    override fun shouldContinueLoading(parameters: LoadControl.Parameters): Boolean = delegate.shouldContinueLoading(parameters)
 
     override fun getAllocator(playerId: PlayerId): Allocator = delegate.getAllocator(playerId)
 
-    override fun getBackBufferDurationUs(playerId: PlayerId): Long =
-        delegate.getBackBufferDurationUs(playerId)
+    override fun getBackBufferDurationUs(playerId: PlayerId): Long = delegate.getBackBufferDurationUs(playerId)
 
-    override fun retainBackBufferFromKeyframe(playerId: PlayerId): Boolean =
-        delegate.retainBackBufferFromKeyframe(playerId)
+    override fun retainBackBufferFromKeyframe(playerId: PlayerId): Boolean = delegate.retainBackBufferFromKeyframe(playerId)
 
     override fun onTracksSelected(
         parameters: LoadControl.Parameters,

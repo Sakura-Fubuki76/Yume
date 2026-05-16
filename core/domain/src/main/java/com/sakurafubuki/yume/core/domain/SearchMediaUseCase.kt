@@ -88,9 +88,7 @@ private class SearchMatcher(query: String) {
     }
 
     private fun calculateTextScore(textLower: String): Int {
-
         if (textLower.contains(queryLower)) {
-
             val wordBoundaryBonus = if (isWordBoundaryMatch(textLower, queryLower)) 50 else 0
 
             val startBonus = if (textLower.startsWith(queryLower)) 30 else 0
@@ -109,7 +107,6 @@ private class SearchMatcher(query: String) {
 
         val allWordsPresent = queryWords.all { word -> textLower.contains(word) }
         if (allWordsPresent) {
-
             val boundaryMatches = queryWords.count { word -> isWordBoundaryMatch(textLower, word) }
             return 200 + (boundaryMatches * 20)
         }

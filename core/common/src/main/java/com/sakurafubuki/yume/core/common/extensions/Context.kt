@@ -15,10 +15,11 @@ import android.os.Environment
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.OpenableColumns
-import com.sakurafubuki.yume.core.common.Logger
 import android.util.TypedValue
 import androidx.core.graphics.drawable.toBitmapOrNull
+import androidx.core.net.toUri
 import androidx.core.text.isDigitsOnly
+import com.sakurafubuki.yume.core.common.Logger
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.InputStream
@@ -26,10 +27,9 @@ import java.net.URL
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.mozilla.universalchardet.UniversalDetector
-import androidx.core.net.toUri
-import kotlinx.coroutines.suspendCancellableCoroutine
 
 val VIDEO_COLLECTION_URI: Uri
     get() =
@@ -48,7 +48,6 @@ fun Context.getPath(uri: Uri): String? {
                 if ("primary".equals(type, ignoreCase = true)) {
                     return Environment.getExternalStorageDirectory().path + "/" + split[1]
                 }
-
             }
 
             uri.isDownloadsDocument -> {

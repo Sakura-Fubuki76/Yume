@@ -91,9 +91,9 @@ import com.sakurafubuki.yume.feature.player.ui.VerticalProgressView
 import com.sakurafubuki.yume.feature.player.ui.VideoInfoOverlay
 import com.sakurafubuki.yume.feature.player.ui.controls.ControlsBottomView
 import com.sakurafubuki.yume.feature.player.ui.controls.ControlsTopView
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.time.Duration.Companion.seconds
 
 val LocalControlsVisibilityState = compositionLocalOf<ControlsVisibilityState?> { null }
 

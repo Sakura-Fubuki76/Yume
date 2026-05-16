@@ -92,7 +92,6 @@ fun BoxScope.PlaylistView(
         title = stringResource(R.string.now_playing),
     ) {
         if (playlistState.playlist.isEmpty()) {
-
             EmptyPlaylistView()
         } else {
             LazyColumn(
@@ -222,7 +221,6 @@ private fun ThumbnailView(
             .background(MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp))
             .aspectRatio(16f / 10f),
     ) {
-
         Icon(
             imageVector = NextIcons.Video,
             contentDescription = null,
@@ -240,12 +238,15 @@ private fun ThumbnailView(
             effectiveArtworkUri != null -> effectiveArtworkUri.toString()
             else -> mediaItem.mediaId
         }
-        android.util.Log.d("BUG2_PlaylistView", "item: mediaId=${mediaItem.mediaId.take(80)} " +
-            "artworkUri=${mediaItem.mediaMetadata.artworkUri} " +
-            "storeThumb=${VideoThumbnailStore.thumbnailUriMap[mediaItem.mediaId]?.take(80)} " +
-            "durationMs=${mediaItem.mediaMetadata.durationMs} " +
-            "storeDuration=${VideoThumbnailStore.durationMsMap[mediaItem.mediaId]} " +
-            "thumbnailData=${thumbnailData.toString().take(80)}")
+        android.util.Log.d(
+            "BUG2_PlaylistView",
+            "item: mediaId=${mediaItem.mediaId.take(80)} " +
+                "artworkUri=${mediaItem.mediaMetadata.artworkUri} " +
+                "storeThumb=${VideoThumbnailStore.thumbnailUriMap[mediaItem.mediaId]?.take(80)} " +
+                "durationMs=${mediaItem.mediaMetadata.durationMs} " +
+                "storeDuration=${VideoThumbnailStore.durationMsMap[mediaItem.mediaId]} " +
+                "thumbnailData=${thumbnailData.toString().take(80)}",
+        )
         val request = ImageRequest.Builder(context)
             .data(thumbnailData)
             .crossfade(true)

@@ -38,13 +38,11 @@ import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import dagger.hilt.android.AndroidEntryPoint
 import com.sakurafubuki.yume.core.common.storagePermissions
 import com.sakurafubuki.yume.core.media.services.MediaService
 import com.sakurafubuki.yume.core.media.sync.MediaSynchronizer
 import com.sakurafubuki.yume.core.model.ThemeConfig
 import com.sakurafubuki.yume.core.ui.motion.LocalOverlayContentState
-import com.sakurafubuki.yume.feature.imagebrowser.ui.ImageViewerStore
 import com.sakurafubuki.yume.core.ui.motion.LocalSharedElementRegistry
 import com.sakurafubuki.yume.core.ui.motion.LocalTransitionEngine
 import com.sakurafubuki.yume.core.ui.motion.OverlayContentState
@@ -52,9 +50,11 @@ import com.sakurafubuki.yume.core.ui.motion.OverlayLayer
 import com.sakurafubuki.yume.core.ui.motion.SharedElementRegistry
 import com.sakurafubuki.yume.core.ui.motion.TransitionEngine
 import com.sakurafubuki.yume.core.ui.theme.YumeTheme
+import com.sakurafubuki.yume.feature.imagebrowser.ui.ImageViewerStore
 import com.sakurafubuki.yume.navigation.AppBottomNavBar
 import com.sakurafubuki.yume.navigation.AppNavHost
 import com.sakurafubuki.yume.navigation.Screen
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 
@@ -168,8 +168,10 @@ private fun MainScreen(
         Screen.Image, Screen.ImageViewer -> imageBackStack?.destination?.route.orEmpty()
         Screen.Settings -> settingsBackStack?.destination?.route.orEmpty()
     }
-    val bottomBarVisible = !(selectedScreen == Screen.Image &&
-        (isImageViewerRoute(selectedTabRoute) || ImageViewerStore.isViewerShowing))
+    val bottomBarVisible = !(
+        selectedScreen == Screen.Image &&
+            (isImageViewerRoute(selectedTabRoute) || ImageViewerStore.isViewerShowing)
+        )
     val tabSwipeEnabled = bottomBarVisible
 
     val transitionEngine = remember { TransitionEngine() }

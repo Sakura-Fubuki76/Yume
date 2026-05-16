@@ -295,8 +295,7 @@ private fun ThumbnailView(
     }
 }
 
-private fun isRemoteHttpUri(uri: String): Boolean =
-    uri.startsWith("http://", ignoreCase = true) || uri.startsWith("https://", ignoreCase = true)
+private fun isRemoteHttpUri(uri: String): Boolean = uri.startsWith("http://", ignoreCase = true) || uri.startsWith("https://", ignoreCase = true)
 
 @PreviewLightDark
 @Composable

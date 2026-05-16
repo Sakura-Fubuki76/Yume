@@ -20,10 +20,9 @@ class CloudDirectoryItemCache @Inject constructor(
         dao.getByParent(serverId, parentPath).map { it.toModel() }
     }
 
-    fun observe(serverId: Int, parentPath: String): Flow<List<WebDavMediaItem>> =
-        dao.observeByParent(serverId, parentPath)
-            .map { entities -> entities.map { it.toModel() } }
-            .distinctUntilChanged()
+    fun observe(serverId: Int, parentPath: String): Flow<List<WebDavMediaItem>> = dao.observeByParent(serverId, parentPath)
+        .map { entities -> entities.map { it.toModel() } }
+        .distinctUntilChanged()
 
     suspend fun put(serverId: Int, parentPath: String, items: List<WebDavMediaItem>) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
@@ -34,35 +33,33 @@ class CloudDirectoryItemCache @Inject constructor(
         )
     }
 
-    private fun WebDavMediaItem.toEntity(parentPath: String, updatedAt: Long): WebDavDirectoryItemEntity =
-        WebDavDirectoryItemEntity(
-            serverId = serverId,
-            parentPath = parentPath,
-            name = name,
-            href = href,
-            contentType = contentType,
-            size = size,
-            width = width,
-            height = height,
-            lastModified = lastModified?.time,
-            isDirectory = isDirectory,
-            apiThumbnailUrl = apiThumbnailUrl,
-            rawVideoUrl = rawVideoUrl,
-            updatedAt = updatedAt,
-        )
+    private fun WebDavMediaItem.toEntity(parentPath: String, updatedAt: Long): WebDavDirectoryItemEntity = WebDavDirectoryItemEntity(
+        serverId = serverId,
+        parentPath = parentPath,
+        name = name,
+        href = href,
+        contentType = contentType,
+        size = size,
+        width = width,
+        height = height,
+        lastModified = lastModified?.time,
+        isDirectory = isDirectory,
+        apiThumbnailUrl = apiThumbnailUrl,
+        rawVideoUrl = rawVideoUrl,
+        updatedAt = updatedAt,
+    )
 
-    private fun WebDavDirectoryItemEntity.toModel(): WebDavMediaItem =
-        WebDavMediaItem(
-            name = name,
-            href = href,
-            contentType = contentType,
-            size = size,
-            width = width,
-            height = height,
-            lastModified = lastModified?.let(::Date),
-            isDirectory = isDirectory,
-            serverId = serverId,
-            apiThumbnailUrl = apiThumbnailUrl,
-            rawVideoUrl = rawVideoUrl,
-        )
+    private fun WebDavDirectoryItemEntity.toModel(): WebDavMediaItem = WebDavMediaItem(
+        name = name,
+        href = href,
+        contentType = contentType,
+        size = size,
+        width = width,
+        height = height,
+        lastModified = lastModified?.let(::Date),
+        isDirectory = isDirectory,
+        serverId = serverId,
+        apiThumbnailUrl = apiThumbnailUrl,
+        rawVideoUrl = rawVideoUrl,
+    )
 }

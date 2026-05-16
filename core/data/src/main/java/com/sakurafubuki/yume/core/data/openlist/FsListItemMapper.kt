@@ -46,7 +46,6 @@ fun FsListItem.toWebDavMediaItem(server: WebDavServer, dirPath: String): WebDavM
         .joinToString("/") { Uri.encode(Uri.decode(it)) }
     val rawVideoUrl: String? = if (!is_dir) {
         if (server.isImageHosting) {
-
             if (thumb.isNotBlank() && (thumb.startsWith("http://") || thumb.startsWith("https://"))) {
                 thumb
             } else if (thumb.isNotBlank()) {
@@ -62,7 +61,6 @@ fun FsListItem.toWebDavMediaItem(server: WebDavServer, dirPath: String): WebDavM
         null
     }
     val (href, apiThumbnailUrl) = if (is_dir) {
-
         val dirUrlPath = if (dirPath == "/") {
             "$rootBaseUrl/$encodedName"
         } else {

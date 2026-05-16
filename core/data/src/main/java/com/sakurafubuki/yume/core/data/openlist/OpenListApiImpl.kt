@@ -1,6 +1,7 @@
 package com.sakurafubuki.yume.core.data.openlist
 
 import android.graphics.BitmapFactory
+import androidx.core.net.toUri
 import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.model.WebDavServer
 import javax.inject.Inject
@@ -14,7 +15,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import androidx.core.net.toUri
 
 @Singleton
 class OpenListApiImpl @Inject constructor(
@@ -87,9 +87,15 @@ class OpenListApiImpl @Inject constructor(
             val baseUrl = extractBaseUrl(server)
             val normalizedPath = path.let {
                 val trimmed = it.trim()
-                if (trimmed.isEmpty()) "/" else if (!trimmed.startsWith('/')) "/$trimmed" else trimmed
+                if (trimmed.isEmpty()) {
+                    "/"
+                } else if (!trimmed.startsWith('/')) {
+                    "/$trimmed"
+                } else {
+                    trimmed
+                }
             }
-            Logger.d("OpenListApi", "fs/list path=${normalizedPath} server=${server.url} basePath=${server.basePath}")
+            Logger.d("OpenListApi", "fs/list path=$normalizedPath server=${server.url} basePath=${server.basePath}")
             val requestBody = FsListRequest(
                 path = normalizedPath,
                 page = page,
@@ -126,7 +132,13 @@ class OpenListApiImpl @Inject constructor(
             val baseUrl = extractBaseUrl(server)
             val normalizedParent = parent.let {
                 val trimmed = it.trim()
-                if (trimmed.isEmpty()) "/" else if (!trimmed.startsWith('/')) "/$trimmed" else trimmed
+                if (trimmed.isEmpty()) {
+                    "/"
+                } else if (!trimmed.startsWith('/')) {
+                    "/$trimmed"
+                } else {
+                    trimmed
+                }
             }
             val requestBody = FsSearchRequest(
                 parent = normalizedParent,

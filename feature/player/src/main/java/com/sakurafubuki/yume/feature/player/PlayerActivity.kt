@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.core.net.toUri
 import androidx.core.util.Consumer
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -31,7 +32,6 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
-import dagger.hilt.android.AndroidEntryPoint
 import com.sakurafubuki.yume.core.common.VideoThumbnailStore
 import com.sakurafubuki.yume.core.common.extensions.getMediaContentUri
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
@@ -44,12 +44,12 @@ import com.sakurafubuki.yume.feature.player.service.PlayerService
 import com.sakurafubuki.yume.feature.player.service.addSubtitleTrack
 import com.sakurafubuki.yume.feature.player.service.stopPlayerSession
 import com.sakurafubuki.yume.feature.player.utils.PlayerApi
+import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.core.net.toUri
 
 val LocalUseMaterialYouControls = compositionLocalOf { false }
 
@@ -222,8 +222,8 @@ class PlayerActivity : ComponentActivity() {
         android.util.Log.d(
             "BUG2_Player",
             "playVideo: uri=$uri mediaContentUri=$mediaContentUri " +
-                    "videos.size=${videos.size} durationMap.size=${durationMap.size} " +
-                    "thumbnailMap.size=${thumbnailMap.size} allDurations.size=${allDurations.size}",
+                "videos.size=${videos.size} durationMap.size=${durationMap.size} " +
+                "thumbnailMap.size=${thumbnailMap.size} allDurations.size=${allDurations.size}",
         )
         videos.forEachIndexed { i, v ->
             android.util.Log.d("BUG2_Player", "  video[$i]: uri=${v.uriString.take(80)} duration=${v.duration} name=${v.nameWithExtension}")
@@ -259,7 +259,7 @@ class PlayerActivity : ComponentActivity() {
                 android.util.Log.d(
                     "BUG2_Player",
                     "  mediaItem[$index]: uri=${uri.take(80)} " +
-                            "thumbUri=${thumbUri?.take(80) ?: "NULL"} durationMs=$durationMs",
+                        "thumbUri=${thumbUri?.take(80) ?: "NULL"} durationMs=$durationMs",
                 )
                 setMediaMetadata(
                     MediaMetadata.Builder().apply {

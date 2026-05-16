@@ -45,12 +45,10 @@ class SoundTouchAudioProcessor : AudioProcessor {
         }
     }
 
-    fun getMediaDuration(playoutDuration: Long): Long {
-        return if (outputBytes >= MIN_BYTES_FOR_DURATION_SCALING_CALCULATION && inputBytes > 0L) {
-            (playoutDuration.toDouble() * inputBytes.toDouble() / outputBytes.toDouble()).toLong()
-        } else {
-            (playoutDuration.toDouble() * speed).toLong()
-        }
+    fun getMediaDuration(playoutDuration: Long): Long = if (outputBytes >= MIN_BYTES_FOR_DURATION_SCALING_CALCULATION && inputBytes > 0L) {
+        (playoutDuration.toDouble() * inputBytes.toDouble() / outputBytes.toDouble()).toLong()
+    } else {
+        (playoutDuration.toDouble() * speed).toLong()
     }
 
     override fun configure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
@@ -67,9 +65,8 @@ class SoundTouchAudioProcessor : AudioProcessor {
         return if (isActive) pendingOutputAudioFormat else AudioProcessor.AudioFormat.NOT_SET
     }
 
-    override fun isActive(): Boolean =
-        pendingOutputAudioFormat != AudioProcessor.AudioFormat.NOT_SET &&
-            (abs(speed - 1f) > CLOSE_THRESHOLD || abs(pitch - 1f) > CLOSE_THRESHOLD)
+    override fun isActive(): Boolean = pendingOutputAudioFormat != AudioProcessor.AudioFormat.NOT_SET &&
+        (abs(speed - 1f) > CLOSE_THRESHOLD || abs(pitch - 1f) > CLOSE_THRESHOLD)
 
     override fun queueInput(inputBuffer: ByteBuffer) {
         if (!inputBuffer.hasRemaining() || outputBuffer.hasRemaining()) return
@@ -220,13 +217,11 @@ class SoundTouchAudioProcessorChain(
         return skipSilenceEnabled
     }
 
-    override fun getMediaDuration(playoutDuration: Long): Long =
-        if (soundTouchAudioProcessor.isActive) {
-            soundTouchAudioProcessor.getMediaDuration(playoutDuration)
-        } else {
-            playoutDuration
-        }
+    override fun getMediaDuration(playoutDuration: Long): Long = if (soundTouchAudioProcessor.isActive) {
+        soundTouchAudioProcessor.getMediaDuration(playoutDuration)
+    } else {
+        playoutDuration
+    }
 
-    override fun getSkippedOutputFrameCount(): Long =
-        silenceSkippingAudioProcessor.skippedFrames
+    override fun getSkippedOutputFrameCount(): Long = silenceSkippingAudioProcessor.skippedFrames
 }

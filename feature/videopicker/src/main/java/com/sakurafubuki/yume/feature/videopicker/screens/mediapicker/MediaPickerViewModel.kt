@@ -7,7 +7,6 @@ import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dagger.hilt.android.lifecycle.HiltViewModel
 import com.sakurafubuki.yume.core.common.Utils
 import com.sakurafubuki.yume.core.common.extensions.prettyName
 import com.sakurafubuki.yume.core.common.extensions.stripUserInfoFromHttpUrl
@@ -17,12 +16,12 @@ import com.sakurafubuki.yume.core.data.openlist.OpenListApi
 import com.sakurafubuki.yume.core.data.openlist.toApiPath
 import com.sakurafubuki.yume.core.data.openlist.toWebDavMediaItem
 import com.sakurafubuki.yume.core.data.repository.CloudVideoMetadataRepository
-import com.sakurafubuki.yume.core.database.dao.MediumStateDao
-import com.sakurafubuki.yume.core.database.entities.MediumStateEntity
 import com.sakurafubuki.yume.core.data.repository.MediaRepository
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
 import com.sakurafubuki.yume.core.data.webdav.WebDavRepository
+import com.sakurafubuki.yume.core.database.dao.MediumStateDao
+import com.sakurafubuki.yume.core.database.entities.MediumStateEntity
 import com.sakurafubuki.yume.core.domain.GetSortedMediaUseCase
 import com.sakurafubuki.yume.core.media.services.MediaService
 import com.sakurafubuki.yume.core.media.sync.MediaInfoSynchronizer
@@ -32,20 +31,19 @@ import com.sakurafubuki.yume.core.model.CloudFolderMetadata
 import com.sakurafubuki.yume.core.model.CloudVideoMetadata
 import com.sakurafubuki.yume.core.model.Folder
 import com.sakurafubuki.yume.core.model.MediaMode
-
 import com.sakurafubuki.yume.core.model.Sort
 import com.sakurafubuki.yume.core.model.Video
 import com.sakurafubuki.yume.core.model.WebDavServer
 import com.sakurafubuki.yume.core.ui.base.DataState
 import com.sakurafubuki.yume.feature.videopicker.navigation.CloudPathArgs
 import com.sakurafubuki.yume.feature.videopicker.navigation.FolderArgs
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -426,14 +424,14 @@ class MediaPickerViewModel @Inject constructor(
                         rootCachedMetadata = rootCachedMetadata,
                     )
                 }
-                        rawCloudFolder.value = immediateFolder
-                        uiStateInternal.update {
-                            it.copy(
-                                selectedCloudServerId = server.id,
-                                cloudPath = path,
-                                cloudRefreshing = refreshing,
-                            )
-                        }
+                rawCloudFolder.value = immediateFolder
+                uiStateInternal.update {
+                    it.copy(
+                        selectedCloudServerId = server.id,
+                        cloudPath = path,
+                        cloudRefreshing = refreshing,
+                    )
+                }
 
                 refreshCloudFolderWithMetadataAsync(
                     cloudAuxParent = cloudAuxParent,
@@ -530,7 +528,6 @@ class MediaPickerViewModel @Inject constructor(
                         preferences = preferences,
                         items = items,
                     )
-
                 }
                 .onFailure { throwable ->
                     if (throwable is CancellationException || requestToken != cloudLoadRequestToken) return@onFailure
@@ -1054,8 +1051,7 @@ class MediaPickerViewModel @Inject constructor(
             ?.id
     }
 
-    private fun String.isHttpUri(): Boolean =
-        startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
+    private fun String.isHttpUri(): Boolean = startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
 
     private fun fillPositionsFromMap(folder: Folder, stateMap: Map<String, MediumStateEntity>): Folder {
         fun fill(video: Video): Video {
@@ -1116,52 +1112,52 @@ class MediaPickerViewModel @Inject constructor(
             ) { metadataMap, folderMetadataMap ->
                 metadataMap to folderMetadataMap
             }.collect { (metadataMap, folderMetadataMap) ->
-                    if (requestToken != cloudLoadRequestToken) return@collect
+                if (requestToken != cloudLoadRequestToken) return@collect
 
-                    val refreshedFolder = withContext(Dispatchers.Default) {
-                        mapCloudFolder(
-                            server = server,
-                            path = path,
-                            preferences = preferences,
-                            items = items,
-                            metadataByHref = metadataMap,
-                            folderMetadataMap = folderMetadataMap,
-                            rootCachedMetadata = folderMetadataMap[normalizePath(path)],
-                        )
-                    }
-                    val displayFolder = resolveCloudVideoFolders(
-                        folder = refreshedFolder,
+                val refreshedFolder = withContext(Dispatchers.Default) {
+                    mapCloudFolder(
+                        server = server,
+                        path = path,
                         preferences = preferences,
+                        items = items,
+                        metadataByHref = metadataMap,
+                        folderMetadataMap = folderMetadataMap,
+                        rootCachedMetadata = folderMetadataMap[normalizePath(path)],
                     )
-
-                    if (requestToken != cloudLoadRequestToken) return@collect
-
-                    val currentFolderMetadata = folderMetadataMap[normalizePath(path)]
-                    if (currentFolderMetadata == null ||
-                        currentFolderMetadata.totalDurationMs != displayFolder.mediaDuration ||
-                        currentFolderMetadata.totalSize != displayFolder.mediaSize ||
-                        currentFolderMetadata.mediaCount != displayFolder.mediaCount ||
-                        currentFolderMetadata.folderCount != displayFolder.folderCount
-                    ) {
-                        val directVideoCount = items.cloudDisplayVideoFiles().size
-                        saveFolderMetadataPreserving(
-                            serverId = server.id,
-                            folderPath = normalizePath(path),
-                            totalDurationMs = displayFolder.mediaDuration,
-                            totalSize = displayFolder.mediaSize,
-                            mediaCount = displayFolder.mediaCount,
-                            folderCount = displayFolder.folderCount,
-                            videoCount = directVideoCount.takeIf { it > 0 } ?: -1,
-                            preserveExistingZeros = shouldPreserveZeroFolderSummary(
-                                server = server,
-                                items = items,
-                                folderMetadataMap = folderMetadataMap,
-                                displayFolder = displayFolder,
-                            ),
-                        )
-                    }
-                    rawCloudFolder.value = displayFolder
                 }
+                val displayFolder = resolveCloudVideoFolders(
+                    folder = refreshedFolder,
+                    preferences = preferences,
+                )
+
+                if (requestToken != cloudLoadRequestToken) return@collect
+
+                val currentFolderMetadata = folderMetadataMap[normalizePath(path)]
+                if (currentFolderMetadata == null ||
+                    currentFolderMetadata.totalDurationMs != displayFolder.mediaDuration ||
+                    currentFolderMetadata.totalSize != displayFolder.mediaSize ||
+                    currentFolderMetadata.mediaCount != displayFolder.mediaCount ||
+                    currentFolderMetadata.folderCount != displayFolder.folderCount
+                ) {
+                    val directVideoCount = items.cloudDisplayVideoFiles().size
+                    saveFolderMetadataPreserving(
+                        serverId = server.id,
+                        folderPath = normalizePath(path),
+                        totalDurationMs = displayFolder.mediaDuration,
+                        totalSize = displayFolder.mediaSize,
+                        mediaCount = displayFolder.mediaCount,
+                        folderCount = displayFolder.folderCount,
+                        videoCount = directVideoCount.takeIf { it > 0 } ?: -1,
+                        preserveExistingZeros = shouldPreserveZeroFolderSummary(
+                            server = server,
+                            items = items,
+                            folderMetadataMap = folderMetadataMap,
+                            displayFolder = displayFolder,
+                        ),
+                    )
+                }
+                rawCloudFolder.value = displayFolder
+            }
         }
 
         viewModelScope.launch(cloudAuxParent + Dispatchers.IO) {
@@ -1200,7 +1196,6 @@ class MediaPickerViewModel @Inject constructor(
                     collector = this,
                 )
             } else {
-
                 items.cloudDisplayVideoFiles().forEach { item -> add(item.href) }
             }
         }

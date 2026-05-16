@@ -43,9 +43,10 @@ internal fun buildImageRequest(
         ImageRequestProfile.PREFETCH -> "prefetch"
     }
     val isRemote = isRemoteImageData(data)
-    val isImageHosting = isRemote && ImageViewerStore.imageHostingBaseUrls.any { baseUrl ->
-        data.toString().startsWith(baseUrl, ignoreCase = true)
-    }
+    val isImageHosting = isRemote &&
+        ImageViewerStore.imageHostingBaseUrls.any { baseUrl ->
+            data.toString().startsWith(baseUrl, ignoreCase = true)
+        }
     val cacheKey = if (isRemote) stableCacheKey(data) else data.toString()
     return ImageRequest.Builder(context)
         .data(data)
@@ -75,7 +76,7 @@ internal fun buildImageRequest(
                 if (isRemote && !isImageHosting && result.dataSource == coil3.decode.DataSource.NETWORK) {
                     CacheTimestampStore.record(context, cacheKey)
                 }
-            }
+            },
         )
         .build()
 }

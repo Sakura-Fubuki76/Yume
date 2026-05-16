@@ -6,7 +6,6 @@ import android.content.Intent
 import android.database.ContentObserver
 import android.provider.MediaStore
 import coil3.ImageLoader
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.sakurafubuki.yume.core.common.Dispatcher
 import com.sakurafubuki.yume.core.common.NextDispatchers
 import com.sakurafubuki.yume.core.common.di.ApplicationScope
@@ -22,6 +21,7 @@ import com.sakurafubuki.yume.core.database.dao.MediumStateDao
 import com.sakurafubuki.yume.core.database.entities.DirectoryEntity
 import com.sakurafubuki.yume.core.database.entities.MediumEntity
 import com.sakurafubuki.yume.core.media.model.MediaVideo
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.LinkedHashSet
 import javax.inject.Inject

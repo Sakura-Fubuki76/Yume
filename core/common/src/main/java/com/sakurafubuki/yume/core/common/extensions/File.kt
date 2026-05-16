@@ -20,9 +20,9 @@ suspend fun File.getSubtitles(): List<File> = withContext(Dispatchers.IO) {
 
     val variantMatches = parentDir.listFiles()?.filter { file ->
         file.isFile &&
-        file.name.startsWith("$mediaName.") &&
-        file.extension.lowercase() in extSet &&
-        file.name !in exactMatches.map { it.name }
+            file.name.startsWith("$mediaName.") &&
+            file.extension.lowercase() in extSet &&
+            file.name !in exactMatches.map { it.name }
     } ?: emptyList()
 
     val strictMatches = exactMatches + variantMatches
@@ -30,9 +30,9 @@ suspend fun File.getSubtitles(): List<File> = withContext(Dispatchers.IO) {
     val strictNames = (exactMatches.map { it.name } + variantMatches.map { it.name }).toSet()
     val fuzzyMatches = parentDir.listFiles()?.filter { file ->
         file.isFile &&
-        file.extension.lowercase() in extSet &&
-        file.name !in strictNames &&
-        fuzzyTitleMatch(mediaName + "." + file.extension, file.name)
+            file.extension.lowercase() in extSet &&
+            file.name !in strictNames &&
+            fuzzyTitleMatch(mediaName + "." + file.extension, file.name)
     } ?: emptyList()
 
     strictMatches + fuzzyMatches
@@ -84,7 +84,6 @@ val File.prettyName: String
 internal data class AnimeTitleInfo(val showName: String, val episode: String)
 
 internal fun extractAnimeInfo(filename: String): AnimeTitleInfo? {
-
     var name = filename.substringBeforeLast(".")
 
     name = name.trimStart().replace(Regex("""^[\[【][^\]】]+[\]】]\s*"""), "")
@@ -117,13 +116,12 @@ internal fun extractAnimeInfo(filename: String): AnimeTitleInfo? {
     return AnimeTitleInfo(showName, episode)
 }
 
-private fun tokenize(s: String): Set<String> =
-    s.lowercase()
-        .replace(Regex("""[～~]"""), "")
-        .split(Regex("""[\s\-_.,!?+/&|]+"""))
-        .map { it.trim() }
-        .filter { it.isNotBlank() && it.length >= 1 }
-        .toSet()
+private fun tokenize(s: String): Set<String> = s.lowercase()
+    .replace(Regex("""[～~]"""), "")
+    .split(Regex("""[\s\-_.,!?+/&|]+"""))
+    .map { it.trim() }
+    .filter { it.isNotBlank() && it.length >= 1 }
+    .toSet()
 
 private fun jaccardSimilarity(a: Set<String>, b: Set<String>): Double {
     val intersection = a.intersect(b).size

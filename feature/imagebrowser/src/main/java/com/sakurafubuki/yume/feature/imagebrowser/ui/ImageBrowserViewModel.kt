@@ -5,8 +5,6 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Log
-import java.io.File
-import java.security.MessageDigest
 import androidx.core.net.toUri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -15,8 +13,6 @@ import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.memory.MemoryCache
 import coil3.request.ImageRequest
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import com.sakurafubuki.yume.core.cache.ImageCacheManager
 import com.sakurafubuki.yume.core.common.Utils
 import com.sakurafubuki.yume.core.common.extensions.stripUserInfoFromHttpUrl
@@ -38,6 +34,10 @@ import com.sakurafubuki.yume.core.model.Video
 import com.sakurafubuki.yume.core.model.WebDavServer
 import com.sakurafubuki.yume.feature.imagebrowser.navigation.imageBrowserCloudServerIdArg
 import com.sakurafubuki.yume.feature.imagebrowser.navigation.imageBrowserPathArg
+import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.File
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -430,7 +430,9 @@ class ImageBrowserViewModel @Inject constructor(
 
         val cachedFolderForColdStart = if (!refreshing) {
             cloudFolderCache.get(server.id, path, "image")
-        } else null
+        } else {
+            null
+        }
 
         uiStateInternal.update {
             it.copy(
@@ -461,7 +463,9 @@ class ImageBrowserViewModel @Inject constructor(
                         val currentState = it.cloudGalleryState
                         if (currentState is ImageGalleryUiState.Content) {
                             it.copy(cloudGalleryState = ImageGalleryUiState.Content(currentState.folder.copy(folderList = enriched.folderList)))
-                        } else it
+                        } else {
+                            it
+                        }
                     }
                 }
             }
@@ -820,7 +824,6 @@ class ImageBrowserViewModel @Inject constructor(
             }
 
             launch {
-
                 var enrichedFolder = folder
                 serverResults.forEach { (server, _) ->
                     val serverFolders = enrichedFolder.folderList.filter {
@@ -837,7 +840,9 @@ class ImageBrowserViewModel @Inject constructor(
                         val currentState = it.cloudGalleryState
                         if (currentState is ImageGalleryUiState.Content) {
                             it.copy(cloudGalleryState = ImageGalleryUiState.Content(enrichedFolder))
-                        } else it
+                        } else {
+                            it
+                        }
                     }
                 }
             }
@@ -997,7 +1002,6 @@ class ImageBrowserViewModel @Inject constructor(
         val videosByParent = videos.groupBy { normalizePath(it.parentPath) }
 
         val folderChildren = when (viewMode) {
-
             MediaViewMode.FOLDERS ->
                 videosByParent
                     .filter { it.key != ROOT_PATH }
@@ -1177,7 +1181,8 @@ class ImageBrowserViewModel @Inject constructor(
 
     private suspend fun saveImageFolderMetadataToDb(server: WebDavServer, folder: Folder) {
         val existingMetadata = cloudVideoMetadataRepository.getFolderMetadata(
-            server.id, folder.folderList.map { it.path },
+            server.id,
+            folder.folderList.map { it.path },
         )
         folder.folderList.forEach { child ->
             val newCoverUri = child.coverMedia?.uriString
@@ -1209,12 +1214,12 @@ class ImageBrowserViewModel @Inject constructor(
             val resolvedTotalSize = existing?.totalSize ?: child.mediaSize
             val resolvedImageCount = if (resolvedMediaCount > 0) resolvedMediaCount else existing?.imageCount ?: 0
             val metadataChanged = existing == null ||
-                    existing.totalDurationMs != resolvedTotalDurationMs ||
-                    existing.totalSize != resolvedTotalSize ||
-                    existing.mediaCount != resolvedMediaCount ||
-                    existing.folderCount != resolvedFolderCount ||
-                    existing.coverImageUri != coverUriToSave ||
-                    existing.imageCount != resolvedImageCount
+                existing.totalDurationMs != resolvedTotalDurationMs ||
+                existing.totalSize != resolvedTotalSize ||
+                existing.mediaCount != resolvedMediaCount ||
+                existing.folderCount != resolvedFolderCount ||
+                existing.coverImageUri != coverUriToSave ||
+                existing.imageCount != resolvedImageCount
             if (metadataChanged) {
                 cloudVideoMetadataRepository.saveFolderMetadata(
                     serverId = server.id,
@@ -1401,12 +1406,10 @@ class ImageBrowserViewModel @Inject constructor(
         )
     }
 
-    private fun hasDisplayableCloudImageFolder(folder: Folder): Boolean {
-        return folder.mediaList.isNotEmpty() ||
-            folder.mediaCount > 0 ||
-            folder.folderList.isNotEmpty() ||
-            folder.coverMedia != null
-    }
+    private fun hasDisplayableCloudImageFolder(folder: Folder): Boolean = folder.mediaList.isNotEmpty() ||
+        folder.mediaCount > 0 ||
+        folder.folderList.isNotEmpty() ||
+        folder.coverMedia != null
 
     private suspend fun loadCloudPreviewItems(
         server: WebDavServer,
@@ -1694,8 +1697,9 @@ class ImageBrowserViewModel @Inject constructor(
         var mediaEnriched = 0
         var mediaStillZero = 0
         val updatedMedia = folder.mediaList.map { video ->
-            if (video.width > 0 && video.height > 0) video
-            else {
+            if (video.width > 0 && video.height > 0) {
+                video
+            } else {
                 val dims = resolveVideoDimensionsFromCache(serverId, video)
                 if (dims != null) {
                     mediaEnriched++
@@ -1710,8 +1714,9 @@ class ImageBrowserViewModel @Inject constructor(
         var folderStillZero = 0
         val updatedFolders = folder.folderList.map { f ->
             val cover = f.coverMedia ?: return@map f
-            if (cover.width > 0 && cover.height > 0) f
-            else {
+            if (cover.width > 0 && cover.height > 0) {
+                f
+            } else {
                 val dims = resolveVideoDimensionsFromCache(serverId, cover)
                 if (dims != null) {
                     folderEnriched++
@@ -1727,7 +1732,6 @@ class ImageBrowserViewModel @Inject constructor(
     }
 
     private suspend fun mergeDimensionsFromOldState(serverId: Int, oldFolder: Folder, newFolder: Folder): Folder {
-
         val oldMediaByStableUrl = mutableMapOf<String, Video>()
         for (v in oldFolder.mediaList) {
             oldMediaByStableUrl[stableUrlForDimensionCache(v.uriString)] = v
@@ -1768,7 +1772,9 @@ class ImageBrowserViewModel @Inject constructor(
                 if (dims != null) {
                     mediaMerged++
                     video.copy(width = dims.first, height = dims.second)
-                } else video
+                } else {
+                    video
+                }
             }
         }
 
@@ -1799,7 +1805,9 @@ class ImageBrowserViewModel @Inject constructor(
                 if (dims != null) {
                     coverMerged++
                     f.copy(coverMedia = cover.copy(width = dims.first, height = dims.second))
-                } else f
+                } else {
+                    f
+                }
             }
         }
 
@@ -1842,15 +1850,11 @@ class ImageBrowserViewModel @Inject constructor(
         }.awaitAll()
     }
 
-    private suspend fun resolveDimensionsFromCache(serverId: Int, uri: String): Pair<Int, Int>? {
-        return imageDimensionCache.get(serverId, uri)
-            ?: imageDimensionCache.get(serverId, stableUrlForDimensionCache(uri))
-    }
+    private suspend fun resolveDimensionsFromCache(serverId: Int, uri: String): Pair<Int, Int>? = imageDimensionCache.get(serverId, uri)
+        ?: imageDimensionCache.get(serverId, stableUrlForDimensionCache(uri))
 
-    private suspend fun resolveVideoDimensionsFromCache(serverId: Int, video: Video): Pair<Int, Int>? {
-        return resolveDimensionsFromCache(serverId, video.uriString)
-            ?: video.thumbnailUriString?.let { resolveDimensionsFromCache(serverId, it) }
-    }
+    private suspend fun resolveVideoDimensionsFromCache(serverId: Int, video: Video): Pair<Int, Int>? = resolveDimensionsFromCache(serverId, video.uriString)
+        ?: video.thumbnailUriString?.let { resolveDimensionsFromCache(serverId, it) }
 
     private fun formatCloudErrorMessage(error: Throwable): String {
         val raw = error.message.orEmpty().ifBlank { "Failed to load images" }

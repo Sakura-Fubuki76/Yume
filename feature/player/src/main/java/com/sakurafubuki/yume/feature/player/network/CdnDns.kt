@@ -1,7 +1,7 @@
 package com.sakurafubuki.yume.feature.player.network
 
-import okhttp3.Dns
 import java.net.InetAddress
+import okhttp3.Dns
 
 class CdnDns(
     private val selections: () -> Map<String, String>,

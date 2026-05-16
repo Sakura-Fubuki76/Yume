@@ -4,8 +4,6 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import android.util.Base64
-import com.sakurafubuki.yume.core.common.Logger
-import com.sakurafubuki.yume.core.common.Utils
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -14,16 +12,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import com.sakurafubuki.yume.core.common.Logger
+import com.sakurafubuki.yume.core.common.Utils
 import com.sakurafubuki.yume.core.data.repository.SpriteSheetCache
 import com.sakurafubuki.yume.core.data.repository.SpriteSheetGenerator
 import com.sakurafubuki.yume.core.model.WebDavServer
+import java.io.File
+import java.security.MessageDigest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.security.MessageDigest
 
 @Stable
 class SpriteSheetState(
@@ -78,8 +78,11 @@ class SpriteSheetState(
         val source = resolveSource(mediaId)
         val httpHeaders = resolveHttpHeaders(mediaId)
 
-        android.util.Log.d("BUG4_SpriteSheet", "generate: mediaId=${mediaId.take(100)} source=${source.take(100)} " +
-            "durationMs=$durationMs httpHeaders=$httpHeaders")
+        android.util.Log.d(
+            "BUG4_SpriteSheet",
+            "generate: mediaId=${mediaId.take(100)} source=${source.take(100)} " +
+                "durationMs=$durationMs httpHeaders=$httpHeaders",
+        )
 
         val cacheDir = SpriteSheetCache.getCacheDir() ?: return
 
@@ -134,29 +137,36 @@ class SpriteSheetState(
             .joinToString("") { "%02x".format(it) }
     }
 
-    private fun resolveSource(mediaId: String): String {
-        return when {
-            mediaId.startsWith("/") -> mediaId
-            mediaId.startsWith("file://") -> {
-                Uri.parse(mediaId).path ?: mediaId
-            }
-            mediaId.startsWith("content://") -> resolveContentUri(mediaId)
-            else -> {
-                if (mediaId.startsWith("http://", ignoreCase = true) ||
-                    mediaId.startsWith("https://", ignoreCase = true)
-                ) {
-                    try {
-                        val uri = java.net.URI(mediaId)
-                        if (uri.rawUserInfo != null) {
-                            java.net.URI(
-                                uri.scheme, null, uri.host, uri.port,
-                                uri.path, uri.query, uri.fragment
-                            ).toString()
-                        } else mediaId
-                    } catch (_: Exception) {
+    private fun resolveSource(mediaId: String): String = when {
+        mediaId.startsWith("/") -> mediaId
+        mediaId.startsWith("file://") -> {
+            Uri.parse(mediaId).path ?: mediaId
+        }
+        mediaId.startsWith("content://") -> resolveContentUri(mediaId)
+        else -> {
+            if (mediaId.startsWith("http://", ignoreCase = true) ||
+                mediaId.startsWith("https://", ignoreCase = true)
+            ) {
+                try {
+                    val uri = java.net.URI(mediaId)
+                    if (uri.rawUserInfo != null) {
+                        java.net.URI(
+                            uri.scheme,
+                            null,
+                            uri.host,
+                            uri.port,
+                            uri.path,
+                            uri.query,
+                            uri.fragment,
+                        ).toString()
+                    } else {
                         mediaId
                     }
-                } else mediaId
+                } catch (_: Exception) {
+                    mediaId
+                }
+            } else {
+                mediaId
             }
         }
     }
@@ -167,7 +177,9 @@ class SpriteSheetState(
             context.contentResolver.query(
                 uri,
                 arrayOf(MediaStore.Video.Media.DATA),
-                null, null, null
+                null,
+                null,
+                null,
             )?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val idx = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
@@ -186,7 +198,9 @@ class SpriteSheetState(
     private fun resolveHttpHeaders(mediaId: String): Map<String, String>? {
         if (!mediaId.startsWith("http://", ignoreCase = true) &&
             !mediaId.startsWith("https://", ignoreCase = true)
-        ) return null
+        ) {
+            return null
+        }
 
         if (Utils.isBaiduNetdiskUrl(mediaId)) {
             android.util.Log.d("BUG4_SpriteSheet", "resolveHttpHeaders: Baidu detected -> User-Agent: pan.baidu.com")
@@ -258,8 +272,7 @@ class SpriteSheetState(
         return withLeadingSlash.removeSuffix("/").ifBlank { "/" }
     }
 
-    private fun defaultPort(scheme: String): Int =
-        if (scheme.equals("https", ignoreCase = true)) 443 else 80
+    private fun defaultPort(scheme: String): Int = if (scheme.equals("https", ignoreCase = true)) 443 else 80
 }
 
 @Composable
@@ -267,6 +280,4 @@ fun rememberSpriteSheetState(
     context: Context,
     scope: CoroutineScope,
     webDavServersProvider: () -> Map<Int, WebDavServer>,
-): SpriteSheetState {
-    return remember { SpriteSheetState(context, scope, webDavServersProvider) }
-}
+): SpriteSheetState = remember { SpriteSheetState(context, scope, webDavServersProvider) }
