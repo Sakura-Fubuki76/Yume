@@ -3,7 +3,7 @@ package com.sakurafubuki.yume.core.ui.theme
 import android.os.Build
 import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -47,6 +47,18 @@ private val lightScheme = lightColorScheme(
     surfaceContainer = surfaceContainerLight,
     surfaceContainerHigh = surfaceContainerHighLight,
     surfaceContainerHighest = surfaceContainerHighestLight,
+    primaryFixed = primaryFixed,
+    primaryFixedDim = primaryFixedDim,
+    onPrimaryFixed = onPrimaryFixed,
+    onPrimaryFixedVariant = onPrimaryFixedVariant,
+    secondaryFixed = secondaryFixed,
+    secondaryFixedDim = secondaryFixedDim,
+    onSecondaryFixed = onSecondaryFixed,
+    onSecondaryFixedVariant = onSecondaryFixedVariant,
+    tertiaryFixed = tertiaryFixed,
+    tertiaryFixedDim = tertiaryFixedDim,
+    onTertiaryFixed = onTertiaryFixed,
+    onTertiaryFixedVariant = onTertiaryFixedVariant,
 )
 
 private val darkScheme = darkColorScheme(
@@ -85,6 +97,18 @@ private val darkScheme = darkColorScheme(
     surfaceContainer = surfaceContainerDark,
     surfaceContainerHigh = surfaceContainerHighDark,
     surfaceContainerHighest = surfaceContainerHighestDark,
+    primaryFixed = primaryFixed,
+    primaryFixedDim = primaryFixedDim,
+    onPrimaryFixed = onPrimaryFixed,
+    onPrimaryFixedVariant = onPrimaryFixedVariant,
+    secondaryFixed = secondaryFixed,
+    secondaryFixedDim = secondaryFixedDim,
+    onSecondaryFixed = onSecondaryFixed,
+    onSecondaryFixedVariant = onSecondaryFixedVariant,
+    tertiaryFixed = tertiaryFixed,
+    tertiaryFixedDim = tertiaryFixedDim,
+    onTertiaryFixed = onTertiaryFixed,
+    onTertiaryFixedVariant = onTertiaryFixedVariant,
 )
 
 private val mediumContrastLightColorScheme = lightColorScheme(
@@ -123,6 +147,18 @@ private val mediumContrastLightColorScheme = lightColorScheme(
     surfaceContainer = surfaceContainerLightMediumContrast,
     surfaceContainerHigh = surfaceContainerHighLightMediumContrast,
     surfaceContainerHighest = surfaceContainerHighestLightMediumContrast,
+    primaryFixed = primaryFixed,
+    primaryFixedDim = primaryFixedDim,
+    onPrimaryFixed = onPrimaryFixed,
+    onPrimaryFixedVariant = onPrimaryFixedVariant,
+    secondaryFixed = secondaryFixed,
+    secondaryFixedDim = secondaryFixedDim,
+    onSecondaryFixed = onSecondaryFixed,
+    onSecondaryFixedVariant = onSecondaryFixedVariant,
+    tertiaryFixed = tertiaryFixed,
+    tertiaryFixedDim = tertiaryFixedDim,
+    onTertiaryFixed = onTertiaryFixed,
+    onTertiaryFixedVariant = onTertiaryFixedVariant,
 )
 
 private val highContrastLightColorScheme = lightColorScheme(
@@ -161,6 +197,18 @@ private val highContrastLightColorScheme = lightColorScheme(
     surfaceContainer = surfaceContainerLightHighContrast,
     surfaceContainerHigh = surfaceContainerHighLightHighContrast,
     surfaceContainerHighest = surfaceContainerHighestLightHighContrast,
+    primaryFixed = primaryFixed,
+    primaryFixedDim = primaryFixedDim,
+    onPrimaryFixed = onPrimaryFixed,
+    onPrimaryFixedVariant = onPrimaryFixedVariant,
+    secondaryFixed = secondaryFixed,
+    secondaryFixedDim = secondaryFixedDim,
+    onSecondaryFixed = onSecondaryFixed,
+    onSecondaryFixedVariant = onSecondaryFixedVariant,
+    tertiaryFixed = tertiaryFixed,
+    tertiaryFixedDim = tertiaryFixedDim,
+    onTertiaryFixed = onTertiaryFixed,
+    onTertiaryFixedVariant = onTertiaryFixedVariant,
 )
 
 private val mediumContrastDarkColorScheme = darkColorScheme(
@@ -199,6 +247,18 @@ private val mediumContrastDarkColorScheme = darkColorScheme(
     surfaceContainer = surfaceContainerDarkMediumContrast,
     surfaceContainerHigh = surfaceContainerHighDarkMediumContrast,
     surfaceContainerHighest = surfaceContainerHighestDarkMediumContrast,
+    primaryFixed = primaryFixed,
+    primaryFixedDim = primaryFixedDim,
+    onPrimaryFixed = onPrimaryFixed,
+    onPrimaryFixedVariant = onPrimaryFixedVariant,
+    secondaryFixed = secondaryFixed,
+    secondaryFixedDim = secondaryFixedDim,
+    onSecondaryFixed = onSecondaryFixed,
+    onSecondaryFixedVariant = onSecondaryFixedVariant,
+    tertiaryFixed = tertiaryFixed,
+    tertiaryFixedDim = tertiaryFixedDim,
+    onTertiaryFixed = onTertiaryFixed,
+    onTertiaryFixedVariant = onTertiaryFixedVariant,
 )
 
 private val highContrastDarkColorScheme = darkColorScheme(
@@ -237,6 +297,18 @@ private val highContrastDarkColorScheme = darkColorScheme(
     surfaceContainer = surfaceContainerDarkHighContrast,
     surfaceContainerHigh = surfaceContainerHighDarkHighContrast,
     surfaceContainerHighest = surfaceContainerHighestDarkHighContrast,
+    primaryFixed = primaryFixed,
+    primaryFixedDim = primaryFixedDim,
+    onPrimaryFixed = onPrimaryFixed,
+    onPrimaryFixedVariant = onPrimaryFixedVariant,
+    secondaryFixed = secondaryFixed,
+    secondaryFixedDim = secondaryFixedDim,
+    onSecondaryFixed = onSecondaryFixed,
+    onSecondaryFixedVariant = onSecondaryFixedVariant,
+    tertiaryFixed = tertiaryFixed,
+    tertiaryFixedDim = tertiaryFixedDim,
+    onTertiaryFixed = onTertiaryFixed,
+    onTertiaryFixedVariant = onTertiaryFixedVariant,
 )
 
 @Composable
@@ -281,7 +353,7 @@ fun YumeTheme(
         else -> lightScheme
     }
 
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
         typography = Typography,
         content = content,

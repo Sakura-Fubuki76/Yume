@@ -228,4 +228,19 @@ val surfaceContainerPureBlack = Color(0xFF121212)
 val surfaceContainerHighPureBlack = Color(0xFF1A1A1A)
 val surfaceContainerHighestPureBlack = Color(0xFF222222)
 
+val primaryFixed = Color(0xFF9CF1EE)
+val primaryFixedDim = Color(0xFF80D5D2)
+val onPrimaryFixed = Color(0xFF00504E)
+val onPrimaryFixedVariant = Color(0xFF006A68)
+
+val secondaryFixed = Color(0xFFCCE8E6)
+val secondaryFixedDim = Color(0xFFB0CCCA)
+val onSecondaryFixed = Color(0xFF324B4A)
+val onSecondaryFixedVariant = Color(0xFF4A6362)
+
+val tertiaryFixed = Color(0xFFD2E4FF)
+val tertiaryFixedDim = Color(0xFFB1C8E8)
+val onTertiaryFixed = Color(0xFF324863)
+val onTertiaryFixedVariant = Color(0xFF4A607B)
+
 val seed = Color(0xFF2B4241)

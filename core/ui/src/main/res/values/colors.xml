@@ -63,4 +63,31 @@
     <color name="md_theme_dark_surfaceTint">#4DDAD6</color>
     <color name="md_theme_dark_outlineVariant">#3F4948</color>
     <color name="md_theme_dark_scrim">#000000</color>
+
+    <!-- Fixed Accent Colors — same across light/dark themes -->
+    <color name="md_theme_light_primaryFixed">#9CF1EE</color>
+    <color name="md_theme_light_primaryFixedDim">#80D5D2</color>
+    <color name="md_theme_light_onPrimaryFixed">#00504E</color>
+    <color name="md_theme_light_onPrimaryFixedVariant">#006A68</color>
+    <color name="md_theme_light_secondaryFixed">#CCE8E6</color>
+    <color name="md_theme_light_secondaryFixedDim">#B0CCCA</color>
+    <color name="md_theme_light_onSecondaryFixed">#324B4A</color>
+    <color name="md_theme_light_onSecondaryFixedVariant">#4A6362</color>
+    <color name="md_theme_light_tertiaryFixed">#D2E4FF</color>
+    <color name="md_theme_light_tertiaryFixedDim">#B1C8E8</color>
+    <color name="md_theme_light_onTertiaryFixed">#324863</color>
+    <color name="md_theme_light_onTertiaryFixedVariant">#4A607B</color>
+
+    <color name="md_theme_dark_primaryFixed">#9CF1EE</color>
+    <color name="md_theme_dark_primaryFixedDim">#80D5D2</color>
+    <color name="md_theme_dark_onPrimaryFixed">#00504E</color>
+    <color name="md_theme_dark_onPrimaryFixedVariant">#006A68</color>
+    <color name="md_theme_dark_secondaryFixed">#CCE8E6</color>
+    <color name="md_theme_dark_secondaryFixedDim">#B0CCCA</color>
+    <color name="md_theme_dark_onSecondaryFixed">#324B4A</color>
+    <color name="md_theme_dark_onSecondaryFixedVariant">#4A6362</color>
+    <color name="md_theme_dark_tertiaryFixed">#D2E4FF</color>
+    <color name="md_theme_dark_tertiaryFixedDim">#B1C8E8</color>
+    <color name="md_theme_dark_onTertiaryFixed">#324863</color>
+    <color name="md_theme_dark_onTertiaryFixedVariant">#4A607B</color>
 </resources>
