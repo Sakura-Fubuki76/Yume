@@ -63,8 +63,8 @@ data class PlayerPreferences(
     val enableDither: Boolean = false,
     val enableRefreshRateMatch: Boolean = false,
     val videoEffectsOrder: List<VideoEffectType> = listOf(
-        VideoEffectType.RESTORE,
         VideoEffectType.AUTODOWNSCALEPRE,
+        VideoEffectType.RESTORE,
         VideoEffectType.UPSCALE,
         VideoEffectType.CLAMP_HIGHLIGHTS,
         VideoEffectType.DEBAND,
@@ -86,15 +86,15 @@ data class PlayerPreferences(
 @Serializable
 enum class Anime4KRestoreMode {
     OFF,
-    L,
     M,
+    L,
 }
 
 @Serializable
 enum class Anime4KUpscaleMode {
     OFF,
-    CNN_X2_L,
     CNN_X2_M,
+    CNN_X2_L,
     GAN_X2_M,
 }
 

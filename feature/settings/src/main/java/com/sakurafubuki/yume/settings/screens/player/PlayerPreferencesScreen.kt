@@ -1,19 +1,11 @@
 package com.sakurafubuki.yume.settings.screens.player
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -23,17 +15,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sakurafubuki.yume.core.common.extensions.isPipFeatureSupported
@@ -137,68 +124,11 @@ private fun PlayerPreferencesContent(
             Column(
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
             ) {
-                ClickablePreferenceItem(
-                    title = stringResource(id = R.string.anime4k_autodownscalepre_title),
-                    description = uiState.preferences.anime4KAutoDownscalePreMode.name(),
-                    icon = NextIcons.AspectRatio,
-                    onClick = { onEvent(PlayerPreferencesUiEvent.ShowDialog(PlayerPreferenceDialog.Anime4KAutoDownscalePreDialog)) },
-                    isFirstItem = true,
-                    isLastItem = false,
-                )
-                ClickablePreferenceItem(
-                    title = stringResource(id = R.string.anime4k_upscale_title),
-                    description = uiState.preferences.anime4KUpscaleMode.name(),
-                    icon = NextIcons.HighQuality,
-                    onClick = { onEvent(PlayerPreferencesUiEvent.ShowDialog(PlayerPreferenceDialog.Anime4KUpscaleDialog)) },
-                    isFirstItem = false,
-                    isLastItem = false,
-                )
-                ClickablePreferenceItem(
-                    title = stringResource(id = R.string.anime4k_restore_title),
-                    description = uiState.preferences.anime4KRestoreMode.name(),
-                    icon = NextIcons.AutoFix,
-                    onClick = { onEvent(PlayerPreferencesUiEvent.ShowDialog(PlayerPreferenceDialog.Anime4KRestoreDialog)) },
-                    isFirstItem = false,
-                    isLastItem = false,
-                )
-                PreferenceSwitch(
-                    title = stringResource(id = R.string.deband_title),
-                    description = stringResource(id = R.string.deband_description),
-                    icon = NextIcons.Gradient,
-                    isChecked = uiState.preferences.enableDeband,
-                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleDeband) },
-                    isFirstItem = false,
-                    isLastItem = false,
-                )
-                PreferenceSwitch(
-                    title = stringResource(id = R.string.anime4k_clamp_highlights_title),
-                    description = stringResource(id = R.string.anime4k_clamp_highlights_description),
-                    icon = NextIcons.Contrast,
-                    isChecked = uiState.preferences.enableAnime4KClampHighlights,
-                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleAnime4KClampHighlights) },
-                    isFirstItem = false,
-                    isLastItem = false,
-                )
-                PreferenceSwitch(
-                    title = stringResource(id = R.string.dither_title),
-                    description = stringResource(id = R.string.dither_description),
-                    icon = NextIcons.PhotoFilter,
-                    isChecked = uiState.preferences.enableDither,
-                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleDither) },
-                    isLastItem = false,
-                )
-                PreferenceSwitch(
-                    title = stringResource(id = R.string.refresh_rate_match_title),
-                    description = stringResource(id = R.string.refresh_rate_match_description),
-                    icon = NextIcons.Tv,
-                    isChecked = uiState.preferences.enableRefreshRateMatch,
-                    onClick = { onEvent(PlayerPreferencesUiEvent.ToggleRefreshRateMatch) },
-                    isLastItem = true,
+                EffectItems(
+                    prefs = uiState.preferences,
+                    onEvent = onEvent,
                 )
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            RenderPipelineSection(uiState.preferences, onEvent)
 
             ListSectionTitle(text = stringResource(id = R.string.playback))
             Column(
@@ -399,101 +329,76 @@ private fun PlayerPreferencesContent(
 }
 
 @Composable
-private fun RenderPipelineSection(
+private fun EffectItems(
     prefs: PlayerPreferences,
     onEvent: (PlayerPreferencesUiEvent) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .padding(16.dp),
-    ) {
-        Text(
-            text = stringResource(id = R.string.render_pipeline_title),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-
-        val pipeline = prefs.videoEffectsOrder.mapNotNull { type ->
-            when (type) {
-                VideoEffectType.AUTODOWNSCALEPRE -> null // Shown combined with UPSCALE below
-                VideoEffectType.UPSCALE -> {
-                    val upName = prefs.anime4KUpscaleMode.takeIf { it != Anime4KUpscaleMode.OFF }?.name()
-                    val dsName = prefs.anime4KAutoDownscalePreMode.takeIf { it != Anime4KAutoDownscalePreMode.OFF }?.name()
-                    if (upName != null && dsName != null) {
-                        "$upName + $dsName"
-                    } else {
-                        upName ?: dsName
-                    }
-                }
-                VideoEffectType.RESTORE ->
-                    prefs.anime4KRestoreMode
-                        .takeIf { it != Anime4KRestoreMode.OFF }?.name()
-                VideoEffectType.DEBAND -> stringResource(R.string.deband_title)
-                    .takeIf { prefs.enableDeband }
-                VideoEffectType.CLAMP_HIGHLIGHTS -> stringResource(R.string.anime4k_clamp_highlights_title)
-                    .takeIf { prefs.enableAnime4KClampHighlights }
-                VideoEffectType.DITHER -> stringResource(R.string.dither_title)
-                    .takeIf { prefs.enableDither }
-            }
-        }
-
-        if (pipeline.isEmpty()) {
-            Text(
-                text = stringResource(id = R.string.render_pipeline_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val types = prefs.videoEffectsOrder
+    types.forEachIndexed { index, type ->
+        val isFirst = index == 0
+        val isLast = index == types.lastIndex
+        when (type) {
+            VideoEffectType.AUTODOWNSCALEPRE -> ClickablePreferenceItem(
+                title = stringResource(id = R.string.anime4k_autodownscalepre_title),
+                description = prefs.anime4KAutoDownscalePreMode.name(),
+                icon = NextIcons.AspectRatio,
+                onClick = { onEvent(PlayerPreferencesUiEvent.ShowDialog(PlayerPreferenceDialog.Anime4KAutoDownscalePreDialog)) },
+                isFirstItem = isFirst,
+                isLastItem = isLast,
             )
-        } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                pipeline.forEachIndexed { index, name ->
-                    val isFirst = index == 0
-                    val isLast = index == pipeline.lastIndex
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(id = R.string.render_pipeline_separator),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.width(16.dp),
-                        )
-                        Text(
-                            text = name,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(MaterialTheme.colorScheme.primaryContainer)
-                                .padding(horizontal = 10.dp, vertical = 6.dp),
-                        )
-                        FilledTonalIconButton(
-                            onClick = { onEvent(PlayerPreferencesUiEvent.MoveEffectUp(index)) },
-                            enabled = !isFirst,
-                            modifier = Modifier.size(32.dp),
-                        ) {
-                            Text("▲", fontSize = 10.sp)
-                        }
-                        FilledTonalIconButton(
-                            onClick = { onEvent(PlayerPreferencesUiEvent.MoveEffectDown(index)) },
-                            enabled = !isLast,
-                            modifier = Modifier.size(32.dp),
-                        ) {
-                            Text("▼", fontSize = 10.sp)
-                        }
-                    }
-                }
-            }
+            VideoEffectType.UPSCALE -> ClickablePreferenceItem(
+                title = stringResource(id = R.string.anime4k_upscale_title),
+                description = prefs.anime4KUpscaleMode.name(),
+                icon = NextIcons.HighQuality,
+                onClick = { onEvent(PlayerPreferencesUiEvent.ShowDialog(PlayerPreferenceDialog.Anime4KUpscaleDialog)) },
+                isFirstItem = isFirst,
+                isLastItem = isLast,
+            )
+            VideoEffectType.RESTORE -> ClickablePreferenceItem(
+                title = stringResource(id = R.string.anime4k_restore_title),
+                description = prefs.anime4KRestoreMode.name(),
+                icon = NextIcons.AutoFix,
+                onClick = { onEvent(PlayerPreferencesUiEvent.ShowDialog(PlayerPreferenceDialog.Anime4KRestoreDialog)) },
+                isFirstItem = isFirst,
+                isLastItem = isLast,
+            )
+            VideoEffectType.DEBAND -> PreferenceSwitch(
+                title = stringResource(id = R.string.deband_title),
+                description = stringResource(id = R.string.deband_description),
+                icon = NextIcons.Gradient,
+                isChecked = prefs.enableDeband,
+                onClick = { onEvent(PlayerPreferencesUiEvent.ToggleDeband) },
+                isFirstItem = isFirst,
+                isLastItem = isLast,
+            )
+            VideoEffectType.CLAMP_HIGHLIGHTS -> PreferenceSwitch(
+                title = stringResource(id = R.string.anime4k_clamp_highlights_title),
+                description = stringResource(id = R.string.anime4k_clamp_highlights_description),
+                icon = NextIcons.Contrast,
+                isChecked = prefs.enableAnime4KClampHighlights,
+                onClick = { onEvent(PlayerPreferencesUiEvent.ToggleAnime4KClampHighlights) },
+                isFirstItem = isFirst,
+                isLastItem = isLast,
+            )
+            VideoEffectType.DITHER -> PreferenceSwitch(
+                title = stringResource(id = R.string.dither_title),
+                description = stringResource(id = R.string.dither_description),
+                icon = NextIcons.PhotoFilter,
+                isChecked = prefs.enableDither,
+                onClick = { onEvent(PlayerPreferencesUiEvent.ToggleDither) },
+                isFirstItem = isFirst,
+                isLastItem = isLast,
+            )
         }
     }
+    PreferenceSwitch(
+        title = stringResource(id = R.string.refresh_rate_match_title),
+        description = stringResource(id = R.string.refresh_rate_match_description),
+        icon = NextIcons.Tv,
+        isChecked = prefs.enableRefreshRateMatch,
+        onClick = { onEvent(PlayerPreferencesUiEvent.ToggleRefreshRateMatch) },
+        isLastItem = true,
+    )
 }
 
 @DayNightPreview
