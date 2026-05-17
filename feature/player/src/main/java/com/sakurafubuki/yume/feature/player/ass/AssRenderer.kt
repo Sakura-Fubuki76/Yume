@@ -13,6 +13,8 @@ object AssRenderer {
     external fun nativeRebuildFontCache(handle: Long)
     external fun nativeSetFontConfig(handle: Long, configPath: String?)
     external fun nativeLoadTrack(handle: Long, data: ByteArray, length: Int)
+    external fun nativeCreateAssTrack(handle: Long)
+    external fun nativeProcessAssChunk(handle: Long, data: ByteArray, length: Int, timecode: Long, duration: Long)
     external fun nativeSetSurface(handle: Long, surface: Surface?)
     external fun nativeSetStorageSize(handle: Long, width: Int, height: Int)
     external fun nativeSetFrameSize(handle: Long, width: Int, height: Int)

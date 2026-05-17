@@ -4,15 +4,25 @@ import android.graphics.PixelFormat
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.delay
 
 @Composable
 fun AssSubtitleView(
     modifier: Modifier = Modifier,
     state: AssSubtitleState,
 ) {
-    if (!state.isLoaded) return
+    val embeddedActive by produceState(false) {
+        while (true) {
+            val active = AssSubtitleState.embeddedTrackActive
+            if (value != active) value = active
+            delay(200L)
+        }
+    }
+    if (!state.isLoaded && !embeddedActive) return
 
     AndroidView(
         modifier = modifier,

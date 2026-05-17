@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import android.net.Uri
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -87,6 +88,7 @@ import com.sakurafubuki.yume.feature.player.state.seekToPositionFormated
 import com.sakurafubuki.yume.feature.player.ui.DoubleTapIndicator
 import com.sakurafubuki.yume.feature.player.ui.OverlayShowView
 import com.sakurafubuki.yume.feature.player.ui.OverlayView
+import com.sakurafubuki.yume.feature.player.ass.AssSubtitleState
 import com.sakurafubuki.yume.feature.player.ui.SubtitleConfiguration
 import com.sakurafubuki.yume.feature.player.ui.VerticalProgressView
 import com.sakurafubuki.yume.feature.player.ui.VideoInfoOverlay
@@ -95,6 +97,7 @@ import com.sakurafubuki.yume.feature.player.ui.controls.ControlsTopView
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.core.net.toUri
 
 val LocalControlsVisibilityState = compositionLocalOf<ControlsVisibilityState?> { null }
 
@@ -116,6 +119,7 @@ fun MediaPlayerScreen(
     )
     val context = LocalContext.current
     val assState = viewModel.assState
+    var selectedAssUri by remember { mutableStateOf<Uri?>(null) }
     val customFontsDirectory = playerPreferences.customFontsDirectory
     LaunchedEffect(customFontsDirectory) {
         if (!assState.fontsReady) {
@@ -130,6 +134,11 @@ fun MediaPlayerScreen(
     }
     player ?: return
     val metadataState = rememberMetadataState(player)
+    LaunchedEffect(player.currentMediaItem?.mediaId) {
+        val mediaId = player.currentMediaItem?.mediaId ?: return@LaunchedEffect
+        val autoUri = AssSubtitleState.autoSelectAssByMediaId.remove(mediaId) as? Uri
+        if (autoUri != null) selectedAssUri = autoUri
+    }
     val mediaPresentationState = rememberMediaPresentationState(player)
     val controlsVisibilityState = rememberControlsVisibilityState(
         player = player,
@@ -251,6 +260,7 @@ fun MediaPlayerScreen(
                     seekGestureState = seekGestureState,
                     videoZoomAndContentScaleState = videoZoomAndContentScaleState,
                     volumeAndBrightnessGestureState = volumeAndBrightnessGestureState,
+                    selectedAssUri = selectedAssUri,
                     subtitleConfiguration = SubtitleConfiguration(
                         useSystemCaptionStyle = playerPreferences.useSystemCaptionStyle,
                         showBackground = playerPreferences.subtitleBackground,
@@ -467,6 +477,10 @@ fun MediaPlayerScreen(
                 videoContentScale = videoZoomAndContentScaleState.videoContentScale,
                 onDismiss = { overlayView = null },
                 onSelectSubtitleClick = onSelectSubtitleClick,
+                onAssTrackSelected = { uriStr ->
+                    selectedAssUri = if (uriStr.isBlank()) null else uriStr.toUri()
+                },
+                selectedAssUri = selectedAssUri,
                 onSubtitleOptionEvent = viewModel::onSubtitleOptionEvent,
                 onVideoContentScaleChanged = { videoZoomAndContentScaleState.onVideoContentScaleChanged(it) },
             )

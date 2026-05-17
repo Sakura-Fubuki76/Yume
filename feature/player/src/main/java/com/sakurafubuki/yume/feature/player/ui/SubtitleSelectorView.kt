@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -40,6 +41,7 @@ import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.sakurafubuki.yume.core.ui.R
+import com.sakurafubuki.yume.feature.player.ass.AssSubtitleState
 import com.sakurafubuki.yume.feature.player.extensions.getName
 import com.sakurafubuki.yume.feature.player.state.SubtitleOptionsEvent
 import com.sakurafubuki.yume.feature.player.state.rememberSubtitleOptionsState
@@ -56,11 +58,20 @@ fun BoxScope.SubtitleSelectorView(
     show: Boolean,
     player: Player,
     onSelectSubtitleClick: () -> Unit,
+    onAssTrackSelected: (uri: String) -> Unit = {},
+    selectedAssUri: android.net.Uri? = null,
     onEvent: (SubtitleOptionsEvent) -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val subtitleTracksState = rememberTracksState(player, C.TRACK_TYPE_TEXT)
     val subtitleOptionsState = rememberSubtitleOptionsState(player, onEvent)
+    val assFiles by produceState(emptyList<android.net.Uri>()) {
+        while (true) {
+            val mediaId = player.currentMediaItem?.mediaId ?: ""
+            value = AssSubtitleState.availableAssFilesByMediaId[mediaId] ?: emptyList()
+            delay(500L)
+        }
+    }
 
     OverlayView(
         modifier = modifier,
@@ -84,11 +95,23 @@ fun BoxScope.SubtitleSelectorView(
                     },
                 )
             }
+            assFiles.forEachIndexed { index, uri ->
+                val name = uri.lastPathSegment ?: uri.path ?: "Subtitle #${index + 1}"
+                RadioButtonRow(
+                    selected = uri == selectedAssUri,
+                    text = name,
+                    onClick = {
+                        onAssTrackSelected(uri.toString())
+                        onDismiss()
+                    },
+                )
+            }
             RadioButtonRow(
-                selected = subtitleTracksState.tracks.none { it.isSelected },
+                selected = subtitleTracksState.tracks.none { it.isSelected } && selectedAssUri == null,
                 text = stringResource(R.string.disable),
                 onClick = {
                     subtitleTracksState.switchTrack(-1)
+                    onAssTrackSelected("")
                     onDismiss()
                 },
             )

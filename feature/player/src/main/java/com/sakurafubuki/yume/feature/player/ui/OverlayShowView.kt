@@ -17,6 +17,8 @@ fun BoxScope.OverlayShowView(
     videoContentScale: VideoContentScale,
     onDismiss: () -> Unit = {},
     onSelectSubtitleClick: () -> Unit = {},
+    onAssTrackSelected: (String) -> Unit = {},
+    selectedAssUri: android.net.Uri? = null,
     onSubtitleOptionEvent: (SubtitleOptionsEvent) -> Unit = {},
     onVideoContentScaleChanged: (VideoContentScale) -> Unit = {},
 ) {
@@ -42,6 +44,8 @@ fun BoxScope.OverlayShowView(
         show = overlayView == OverlayView.SUBTITLE_SELECTOR,
         player = player,
         onSelectSubtitleClick = onSelectSubtitleClick,
+        onAssTrackSelected = onAssTrackSelected,
+        selectedAssUri = selectedAssUri,
         onEvent = onSubtitleOptionEvent,
         onDismiss = onDismiss,
     )

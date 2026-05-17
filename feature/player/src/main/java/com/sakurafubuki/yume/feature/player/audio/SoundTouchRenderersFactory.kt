@@ -2,13 +2,18 @@ package com.sakurafubuki.yume.feature.player.audio
 
 import android.content.Context
 import android.media.AudioTrack
+import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.audio.AudioOffloadSupport
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.AudioTrackAudioOutputProvider
 import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.text.TextOutput
+import androidx.media3.exoplayer.text.TextRenderer
 import com.sakurafubuki.yume.core.model.AudioOutputMode
+import com.sakurafubuki.yume.feature.player.ass.AssSubtitleDecoderFactory
 import io.github.anilbeesetti.nextlib.media3ext.ffdecoder.NextRenderersFactory
 
 @OptIn(UnstableApi::class)
@@ -16,6 +21,16 @@ class SoundTouchRenderersFactory(
     context: Context,
     private val audioOutputMode: AudioOutputMode = AudioOutputMode.AUDIO_TRACK,
 ) : NextRenderersFactory(context) {
+
+    override fun buildTextRenderers(
+        context: Context,
+        textOutput: TextOutput,
+        outputLooper: Looper,
+        extensionRendererMode: Int,
+        out: ArrayList<Renderer>,
+    ) {
+        out.add(TextRenderer(textOutput, outputLooper, AssSubtitleDecoderFactory()))
+    }
 
     override fun buildAudioSink(
         context: Context,

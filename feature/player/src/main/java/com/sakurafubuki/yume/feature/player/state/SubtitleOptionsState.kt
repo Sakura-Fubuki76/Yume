@@ -18,10 +18,10 @@ import androidx.media3.session.MediaController
 import com.sakurafubuki.yume.feature.player.extensions.copy
 import com.sakurafubuki.yume.feature.player.service.getSubtitleDelayMilliseconds
 import com.sakurafubuki.yume.feature.player.service.getSubtitleSpeed
+import com.sakurafubuki.yume.feature.player.extensions.subtitleDelayMilliseconds
+import com.sakurafubuki.yume.feature.player.extensions.subtitleSpeed
 import com.sakurafubuki.yume.feature.player.service.setSubtitleDelayMilliseconds
 import com.sakurafubuki.yume.feature.player.service.setSubtitleSpeed
-import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
-import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

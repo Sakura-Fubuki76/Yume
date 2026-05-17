@@ -1,6 +1,7 @@
 package com.sakurafubuki.yume.feature.player
 
 import android.graphics.Rect
+import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -109,6 +110,7 @@ fun PlayerContentFrame(
     videoZoomAndContentScaleState: VideoZoomAndContentScaleState,
     volumeAndBrightnessGestureState: VolumeAndBrightnessGestureState,
     subtitleConfiguration: SubtitleConfiguration,
+    selectedAssUri: Uri? = null,
 ) {
     val presentationState = rememberPresentationState(player)
 
@@ -119,7 +121,6 @@ fun PlayerContentFrame(
     var surfaceHeightPx by remember { mutableIntStateOf(0) }
     var surfaceOffsetXPx by remember { mutableFloatStateOf(0f) }
     var surfaceOffsetYPx by remember { mutableFloatStateOf(0f) }
-
     var videoStorageW by remember { mutableIntStateOf(0) }
     var videoStorageH by remember { mutableIntStateOf(0) }
 
@@ -211,7 +212,7 @@ fun PlayerContentFrame(
             "uri=${assSubtitleInfo?.first}",
     )
 
-    if (!isAssSubtitle) {
+    if (!isAssSubtitle && selectedAssUri == null) {
         SubtitleView(
             player = player,
             isInPictureInPictureMode = pictureInPictureState.isInPictureInPictureMode,
@@ -265,7 +266,7 @@ fun PlayerContentFrame(
     rememberAssSubtitleState(
         state = assState,
         player = player,
-        assFileUri = if (isAssSubtitle) currentSubtitleUri else null,
+        assFileUri = if (isAssSubtitle) currentSubtitleUri else selectedAssUri,
         configuration = subtitleConfiguration,
     )
 
@@ -296,7 +297,7 @@ fun PlayerContentFrame(
 
     val hasDisplayArea = (displayRect.width > 0 && displayRect.height > 0) ||
         (surfaceWidthPx > 0 && surfaceHeightPx > 0)
-    if (isAssSubtitle && hasDisplayArea) {
+    if ((isAssSubtitle || selectedAssUri != null) && hasDisplayArea) {
         val useRect = displayRect.width > 0 && displayRect.height > 0
         val w = if (useRect) displayRect.width else surfaceWidthPx
         val h = if (useRect) displayRect.height else surfaceHeightPx

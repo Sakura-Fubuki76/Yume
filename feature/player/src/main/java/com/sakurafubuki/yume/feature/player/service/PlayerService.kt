@@ -47,7 +47,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.common.Utils
 import com.sakurafubuki.yume.core.common.extensions.deleteFiles
-import com.sakurafubuki.yume.core.common.extensions.fuzzyTitleMatch
+import com.sakurafubuki.yume.core.common.extensions.fuzzyMatchNames
 import com.sakurafubuki.yume.core.common.extensions.getFilenameFromUri
 import com.sakurafubuki.yume.core.common.extensions.getLocalSubtitles
 import com.sakurafubuki.yume.core.common.extensions.getPath
@@ -70,6 +70,7 @@ import com.sakurafubuki.yume.core.model.WebDavServer
 import com.sakurafubuki.yume.core.ui.R as coreUiR
 import com.sakurafubuki.yume.feature.player.PlayerActivity
 import com.sakurafubuki.yume.feature.player.R
+import com.sakurafubuki.yume.feature.player.ass.AssSubtitleState
 import com.sakurafubuki.yume.feature.player.audio.SoundTouchRenderersFactory
 import com.sakurafubuki.yume.feature.player.effect.Anime4KClampHighlightsEffect
 import com.sakurafubuki.yume.feature.player.effect.Anime4KRestoreEffect
@@ -90,8 +91,6 @@ import com.sakurafubuki.yume.feature.player.extensions.switchTrack
 import com.sakurafubuki.yume.feature.player.extensions.uriToSubtitleConfiguration
 import com.sakurafubuki.yume.feature.player.extensions.videoZoom
 import dagger.hilt.android.AndroidEntryPoint
-import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleDelayMilliseconds
-import io.github.anilbeesetti.nextlib.media3ext.renderer.subtitleSpeed
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -532,10 +531,10 @@ class PlayerService : MediaSessionService() {
                     val subtitleUri = args.getString(CustomCommands.SUBTITLE_TRACK_URI_KEY)?.toUri()
                         ?: return@future SessionResult(SessionError.ERROR_BAD_VALUE)
 
-                    val newSubConfiguration = uriToSubtitleConfiguration(
-                        uri = subtitleUri,
-                        subtitleEncoding = playerPreferences.subtitleTextEncoding,
-                    )
+                    val isAssSubtitle = subtitleUri.lastPathSegment
+                        ?.let { it.endsWith(".ass", ignoreCase = true) || it.endsWith(".ssa", ignoreCase = true) }
+                        ?: false
+
                     mediaSession?.player?.let { player ->
                         val currentMediaItem = player.currentMediaItem ?: return@let
                         val textTracks = player.currentTracks.groups.filter {
@@ -554,8 +553,14 @@ class PlayerService : MediaSessionService() {
                             uri = currentMediaItem.mediaId,
                             subtitleUri = subtitleUri,
                         )
-                        newSubConfiguration?.let {
-                            player.addAdditionalSubtitleConfiguration(it)
+                        if (!isAssSubtitle) {
+                            val newSubConfiguration = uriToSubtitleConfiguration(
+                                uri = subtitleUri,
+                                subtitleEncoding = playerPreferences.subtitleTextEncoding,
+                            )
+                            newSubConfiguration?.let {
+                                player.addAdditionalSubtitleConfiguration(it)
+                            }
                         }
                     }
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
@@ -943,7 +948,17 @@ class PlayerService : MediaSessionService() {
                         "bestCandidate=$bestCandidateUri, allSubs=$allSubUris",
                 )
 
-                val subConfigurations = allSubUris.map { subtitleUri ->
+                val (assUris, nonAssUris) = allSubUris.partition { uri ->
+                    val path = uri.lastPathSegment ?: uri.path ?: ""
+                    path.endsWith(".ass", ignoreCase = true) || path.endsWith(".ssa", ignoreCase = true)
+                }
+                AssSubtitleState.availableAssFilesByMediaId[mediaItem.mediaId] = assUris
+                val bestAssUri = if (bestCandidateUri != null && bestCandidateUri in assUris) bestCandidateUri
+                    else assUris.firstOrNull()
+                if (bestAssUri != null && shouldAutoSelect) {
+                    AssSubtitleState.autoSelectAssByMediaId[mediaItem.mediaId] = bestAssUri
+                }
+                val subConfigurations = nonAssUris.map { subtitleUri ->
                     uriToSubtitleConfiguration(
                         uri = subtitleUri,
                         subtitleEncoding = playerPreferences.subtitleTextEncoding,
@@ -1220,7 +1235,7 @@ class PlayerService : MediaSessionService() {
             val isSubExt = item.name.let { it.endsWith(".ass", true) || it.endsWith(".ssa", true) || it.endsWith(".srt", true) || it.endsWith(".vtt", true) || it.endsWith(".ttml", true) }
             if (!isSubExt) return@filter false
 
-            itemName.startsWith(decodedBase) || fuzzyTitleMatch(decodedBase, itemName)
+            itemName.startsWith(decodedBase) || fuzzyMatchNames(decodedBase, itemName)
         }.mapNotNull { item ->
             val encodedName = Uri.encode(Uri.decode(item.name))
             val encodedDirPath = apiDirPath.removePrefix("/")

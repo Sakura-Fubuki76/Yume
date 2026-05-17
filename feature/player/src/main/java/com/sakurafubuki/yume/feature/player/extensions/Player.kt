@@ -81,3 +81,18 @@ fun Player.setIsScrubbingModeEnabled(enabled: Boolean) {
         is ExoPlayer -> this.isScrubbingModeEnabled = enabled
     }
 }
+
+private val subtitleDelayStore = java.util.Collections.synchronizedMap(java.util.WeakHashMap<Player, Long>())
+private val subtitleSpeedStore = java.util.Collections.synchronizedMap(java.util.WeakHashMap<Player, Float>())
+
+var Player.subtitleDelayMilliseconds: Long
+    get() = subtitleDelayStore[this] ?: 0L
+    set(value) {
+        subtitleDelayStore[this] = value
+    }
+
+var Player.subtitleSpeed: Float
+    get() = subtitleSpeedStore[this] ?: 1f
+    set(value) {
+        subtitleSpeedStore[this] = value
+    }

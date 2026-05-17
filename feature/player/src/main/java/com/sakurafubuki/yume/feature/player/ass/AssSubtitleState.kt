@@ -93,8 +93,8 @@ fun rememberAssSubtitleState(
 
     LaunchedEffect(assFileUri) {
         Logger.d("AssSubtitleState", "loadTrack triggered: assFileUri=$assFileUri")
+        state.clearTrack()
         if (assFileUri == null) {
-            state.clearTrack()
             return@LaunchedEffect
         }
         val key = assFileUri.toString()
@@ -167,14 +167,22 @@ fun rememberAssSubtitleState(
         }
     }
 
-    LaunchedEffect(state.isLoaded, state.fontsReady, isPlaying) {
-        if (!state.isLoaded || !state.fontsReady) return@LaunchedEffect
+    val embeddedActive by produceState(false) {
+        while (true) {
+            val active = AssSubtitleState.embeddedTrackActive
+            if (value != active) value = active
+            delay(200L)
+        }
+    }
 
-        val startGen = state.loadGeneration
+    LaunchedEffect(state.isLoaded, state.fontsReady, isPlaying, embeddedActive, state.loadGeneration) {
+        if ((!state.isLoaded && !embeddedActive) || !state.fontsReady) return@LaunchedEffect
+
+        val capturedGen = state.loadGeneration
         state.renderFrame(player.currentPosition)
 
         while (true) {
-            if (state.loadGeneration != startGen) return@LaunchedEffect
+            if (state.loadGeneration != capturedGen) return@LaunchedEffect
             state.renderFrame(player.currentPosition)
             delay(16L)
         }
@@ -188,6 +196,14 @@ class AssSubtitleState {
 
         @Volatile
         private var fontsAlreadyLoaded: Boolean = false
+
+        @Volatile
+        var embeddedTrackActive: Boolean = false
+
+        val availableAssFilesByMediaId: MutableMap<String, List<android.net.Uri>> =
+            java.util.concurrent.ConcurrentHashMap()
+        val autoSelectAssByMediaId: MutableMap<String, android.net.Uri> =
+            java.util.concurrent.ConcurrentHashMap()
 
         @Synchronized
         fun getOrCreateHandle(): Long {
@@ -314,6 +330,10 @@ class AssSubtitleState {
     }
 
     fun loadFontsForTrack(context: Context, assBytes: ByteArray) {
+        if (areFontsLoaded()) {
+            fontsReady = true
+            return
+        }
         val treeUri = safTreeUri
         if (treeUri == null) {
             Logger.d("AssSubtitleState", "loadFontsForTrack: no SAF tree URI stored, marking ready")

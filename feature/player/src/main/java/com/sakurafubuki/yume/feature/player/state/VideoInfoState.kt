@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,19 +25,19 @@ class VideoInfoState(private val player: Player) {
         private set
     var codecs: String? by mutableStateOf(null)
         private set
-    var bitrate: Int by mutableStateOf(Format.NO_VALUE)
+    var bitrate: Int by mutableIntStateOf(Format.NO_VALUE)
         private set
-    var frameRate: Float by mutableStateOf(0f)
+    var frameRate: Float by mutableFloatStateOf(0f)
         private set
-    var width: Int by mutableStateOf(0)
+    var width: Int by mutableIntStateOf(0)
         private set
-    var height: Int by mutableStateOf(0)
+    var height: Int by mutableIntStateOf(0)
         private set
-    var colorSpace: Int by mutableStateOf(Format.NO_VALUE)
+    var colorSpace: Int by mutableIntStateOf(Format.NO_VALUE)
         private set
-    var colorTransfer: Int by mutableStateOf(Format.NO_VALUE)
+    var colorTransfer: Int by mutableIntStateOf(Format.NO_VALUE)
         private set
-    var colorRange: Int by mutableStateOf(Format.NO_VALUE)
+    var colorRange: Int by mutableIntStateOf(Format.NO_VALUE)
         private set
 
     val isReady: Boolean get() = width > 0 || codecs != null
@@ -70,6 +72,7 @@ class VideoInfoState(private val player: Player) {
         }
 
     val colorSpaceFormatted: String?
+        @androidx.annotation.OptIn(UnstableApi::class)
         get() = when (colorSpace) {
             C.COLOR_SPACE_BT601 -> "BT.601"
             C.COLOR_SPACE_BT709 -> "BT.709"
@@ -77,6 +80,7 @@ class VideoInfoState(private val player: Player) {
             else -> null
         }
     val colorTransferFormatted: String?
+        @androidx.annotation.OptIn(UnstableApi::class)
         get() = when (colorTransfer) {
             C.COLOR_TRANSFER_SDR -> "SDR"
             C.COLOR_TRANSFER_ST2084 -> "PQ (ST.2084)"
@@ -90,12 +94,14 @@ class VideoInfoState(private val player: Player) {
             return if (space != null) "$transfer / $space" else transfer
         }
     val colorRangeFormatted: String?
+        @androidx.annotation.OptIn(UnstableApi::class)
         get() = when (colorRange) {
             C.COLOR_RANGE_LIMITED -> "Limited"
             C.COLOR_RANGE_FULL -> "Full"
             else -> null
         }
 
+    @androidx.annotation.OptIn(UnstableApi::class)
     @OptIn(UnstableApi::class)
     suspend fun observe() {
         title = player.mediaMetadata.title?.toString()
@@ -119,6 +125,7 @@ class VideoInfoState(private val player: Player) {
         }
     }
 
+    @androidx.annotation.OptIn(UnstableApi::class)
     @OptIn(UnstableApi::class)
     private fun refreshTracks(tracks: Tracks) {
         for (group in tracks.groups) {

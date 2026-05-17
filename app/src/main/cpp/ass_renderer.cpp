@@ -215,6 +215,7 @@ struct AssContext {
     GLuint glVboInstance = 0;
     GLuint glTexArray    = 0;
     int    texW = 0, texH = 0, texLayers = 0;
+    int    glInstanceCapacity = 0;
 
     GLint  locRes = -1;
     GLint  locTex = -1;
@@ -305,8 +306,8 @@ struct AssContext {
 
         glGenBuffers(1, &glVboInstance);
         glBindBuffer(GL_ARRAY_BUFFER, glVboInstance);
-        constexpr int kMaxInstances = 256;
-        glBufferData(GL_ARRAY_BUFFER, kMaxInstances * 11 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+        glInstanceCapacity = 256;
+        glBufferData(GL_ARRAY_BUFFER, glInstanceCapacity * 11 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
 
         constexpr GLsizei instStride = 11 * sizeof(float);
         glEnableVertexAttribArray(2);
@@ -492,6 +493,11 @@ struct AssContext {
             }
         }
 
+        if (n > glInstanceCapacity) {
+            glInstanceCapacity = n + 64;
+            glBindBuffer(GL_ARRAY_BUFFER, glVboInstance);
+            glBufferData(GL_ARRAY_BUFFER, glInstanceCapacity * 11 * sizeof(float), nullptr, GL_DYNAMIC_DRAW);
+        }
         glBindBuffer(GL_ARRAY_BUFFER, glVboInstance);
         glBufferSubData(GL_ARRAY_BUFFER, 0, n * 11 * sizeof(float), instData.data());
         glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -585,6 +591,44 @@ Java_com_sakurafubuki_yume_feature_player_ass_AssRenderer_nativeLoadTrack(
         }
     }
 #endif
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_sakurafubuki_yume_feature_player_ass_AssRenderer_nativeCreateAssTrack(
+    JNIEnv*, jobject, jlong handle)
+{
+    AssContext* ctx = reinterpret_cast<AssContext*>(handle);
+    if (!ctx) return;
+    std::lock_guard<std::mutex> lock(ctx->renderMutex);
+#if HAS_LIBASS
+    if (ctx->track) { ass_free_track(ctx->track); ctx->track = nullptr; }
+    if (ctx->lib) {
+        ctx->track = ass_new_track(ctx->lib);
+        if (ctx->track) {
+            ass_track_set_feature(ctx->track, ASS_FEATURE_WRAP_UNICODE, 1);
+        }
+    }
+#endif
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_sakurafubuki_yume_feature_player_ass_AssRenderer_nativeProcessAssChunk(
+    JNIEnv* env, jobject, jlong handle, jbyteArray data, jint length, jlong timecode, jlong duration)
+{
+    AssContext* ctx = reinterpret_cast<AssContext*>(handle);
+    if (!ctx || !ctx->track) return;
+    jbyte* buf = env->GetByteArrayElements(data, nullptr);
+    if (!buf) return;
+    std::lock_guard<std::mutex> lock(ctx->renderMutex);
+#if HAS_LIBASS
+    ass_process_chunk(ctx->track, reinterpret_cast<char*>(buf), length, timecode, duration);
+    int rx = ctx->track->PlayResX, ry = ctx->track->PlayResY;
+    if (rx > 0 && ry > 0 && ctx->renderer) {
+        ass_set_storage_size(ctx->renderer, rx, ry);
+    }
+    ctx->ycbcrMatrix = ctx->track->YCbCrMatrix;
+#endif
+    env->ReleaseByteArrayElements(data, buf, JNI_ABORT);
 }
 
 extern "C" JNIEXPORT void JNICALL
