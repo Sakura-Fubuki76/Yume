@@ -51,10 +51,15 @@
     <string name="deband_title">去色带</string>
     <string name="deband_description">减少画面中的色带伪影，使渐变区域过渡更平滑</string>
     <string name="anime4k_restore_title">Anime4K Restore</string>
-    <string name="anime4k_clamp_highlights_title">高光钳制</string>
+    <string name="anime4k_autodownscalepre_title">Anime4K AutoDownscalePre</string>
+    <string name="anime4k_upscale_title">Anime4K Upscale</string>
+    <string name="anime4k_clamp_highlights_title">Anime4K Clamp Highlights</string>
     <string name="anime4k_clamp_highlights_description">在 Restore 后限制局部高光过冲</string>
     <string name="dither_title">抖动</string>
     <string name="dither_description">在视频渲染时应用Bayer抖动以减轻色带</string>
+    <string name="render_pipeline_title">渲染流程</string>
+    <string name="render_pipeline_empty">无活跃效果</string>
+    <string name="render_pipeline_separator">→</string>
     <string name="shortest">最短到最长</string>
     <string name="longest">最长到最短</string>
     <string name="smallest">最小到最大</string>

@@ -15,21 +15,27 @@ class Anime4KCNNShaderProgram(
     useHdr: Boolean,
     private val context: Context,
     private val assetPath: String,
+    private val downscaleFactor: Float = 1.0f,
 ) : BaseGlShaderProgram(useHdr, 1) {
 
     private var layers: List<CompiledLayer> = emptyList()
     private var passThroughProgram: GlProgram? = null
     private var shaderInitFailed = false
-    private var width = 0
-    private var height = 0
+    private var inputWidth = 0
+    private var inputHeight = 0
+    private var workWidth = 0
+    private var workHeight = 0
+    private var scaleFactor = 1
 
     private data class FboTex(var fbo: Int = 0, var tex: Int = 0)
 
     private val intermediates = mutableMapOf<String, FboTex>()
 
     override fun configure(inputWidth: Int, inputHeight: Int): Size {
-        width = inputWidth
-        height = inputHeight
+        this.inputWidth = inputWidth
+        this.inputHeight = inputHeight
+        workWidth = (inputWidth * downscaleFactor).toInt().coerceAtLeast(1)
+        workHeight = (inputHeight * downscaleFactor).toInt().coerceAtLeast(1)
 
         passThroughProgram = runCatching {
             GlProgram(VERTEX_SHADER, PASS_THROUGH_FRAG).also(::setupVertexBuffers)
@@ -39,15 +45,16 @@ class Anime4KCNNShaderProgram(
 
         try {
             val source = readAsset(assetPath)
+            scaleFactor = parseScaleFactor(source)
             val parsed = parseCnnSource(source)
             layers = parsed.map { compileLayer(it) }
-            Logger.i(TAG, "CNN compiled ${layers.size} layers from $assetPath")
+            Logger.i(TAG, "CNN input=${inputWidth}x$inputHeight work=${workWidth}x$workHeight scale=${scaleFactor}x compiled ${layers.size} layers from $assetPath")
         } catch (e: Exception) {
             Logger.w(TAG, "CNN init failed for $assetPath, using pass-through", e)
             shaderInitFailed = true
             layers = emptyList()
         }
-        return Size(inputWidth, inputHeight)
+        return Size(workWidth * scaleFactor, workHeight * scaleFactor)
     }
 
     override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
@@ -58,27 +65,26 @@ class Anime4KCNNShaderProgram(
         }
         try {
             val viewport = currentViewport()
-            val w = viewport[2]
-            val h = viewport[3]
-            if (w <= 0 || h <= 0) {
+            val vw = viewport[2]
+            val vh = viewport[3]
+            if (vw <= 0 || vh <= 0) {
                 drawPassThrough(inputTexId, outputFbo)
                 return
             }
 
-            if (w != width || h != height) {
-                releaseIntermediates()
-                width = w
-                height = h
-            }
+            // Output texelSize always based on full-res input so CNN kernels sample source at native precision
+            val inputTexelSize = floatArrayOf(1f / inputWidth, 1f / inputHeight)
 
             val textureRegistry = mutableMapOf("MAIN" to inputTexId)
 
             for ((index, layer) in layers.withIndex()) {
                 val isLast = index == layers.lastIndex
-                val targetFbo = if (isLast) outputFbo else ensureIntermediate(layer.outputName, w, h)
+                val targetFbo = if (isLast) outputFbo else ensureIntermediate(layer.outputName, workWidth, workHeight)
 
+                val layerW = if (isLast) vw else workWidth
+                val layerH = if (isLast) vh else workHeight
                 GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, targetFbo)
-                GLES30.glViewport(0, 0, w, h)
+                GLES30.glViewport(0, 0, layerW, layerH)
                 layer.program.use()
 
                 for ((unit, texName) in layer.inputNames.withIndex()) {
@@ -88,7 +94,7 @@ class Anime4KCNNShaderProgram(
                     layer.program.setSamplerTexIdUniform("uInput$unit", texId, unit)
                 }
                 if (layer.needsTexelSize) {
-                    layer.program.setFloatsUniform("uTexelSize", floatArrayOf(1f / w, 1f / h))
+                    layer.program.setFloatsUniform("uTexelSize", inputTexelSize)
                 }
                 layer.program.bindAttributesAndUniforms()
                 GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
@@ -211,6 +217,18 @@ class Anime4KCNNShaderProgram(
         val isFinal: Boolean,
     )
 
+    private fun parseScaleFactor(source: String): Int {
+        val pattern = Regex("""//!WIDTH\s+\w+\.\w\s+(\d+)\s+\*""")
+        var maxScale = 1
+        for (line in source.lines()) {
+            pattern.find(line)?.let { match ->
+                val s = match.groupValues[1].toInt()
+                if (s > maxScale) maxScale = s
+            }
+        }
+        return maxScale
+    }
+
     private fun parseCnnSource(source: String): List<ParsedLayer> {
         val sections = source.split(Regex("""//!DESC\s""")).drop(1)
         return sections.map { section ->
@@ -292,7 +310,7 @@ class Anime4KCNNShaderProgram(
         for ((i, name) in layer.inputNames.withIndex()) {
             sb.appendLine("uniform sampler2D uInput$i;")
         }
-        if (layer.macros.any { it.contains("x_off") }) {
+        if (layer.macros.any { it.contains("x_off") } || layer.body.contains("_pt") || layer.body.contains("_size")) {
             sb.appendLine("uniform vec2 uTexelSize;")
         }
         sb.appendLine("in vec2 vTexCoord;")
@@ -304,10 +322,10 @@ class Anime4KCNNShaderProgram(
         }
 
         sb.appendLine("void main() {")
-        sb.appendLine(layer.body)
+        val body = transformBodyRefs(layer.body, layer.inputNames)
+        sb.appendLine(body)
 
-        var returnExpr = layer.returnExpr
-
+        var returnExpr = transformBodyRefs(layer.returnExpr, layer.inputNames)
         returnExpr = returnExpr.replace(
             Regex("""MAIN_tex\s*\(\s*MAIN_pos\s*\)"""),
             "texture(uInput0, vTexCoord)",
@@ -318,14 +336,66 @@ class Anime4KCNNShaderProgram(
         return sb.toString()
     }
 
+    private fun transformBodyRefs(code: String, inputNames: List<String>): String {
+        var result = code
+
+        // Replace NAME_pos, NAME_size, NAME_pt
+        for ((index, name) in inputNames.withIndex()) {
+            result = result.replace(Regex("""\b${Regex.escape(name)}_pos\b"""), "vTexCoord")
+            result = result.replace(Regex("""\b${Regex.escape(name)}_size\b"""), "vec2(textureSize(uInput$index, 0))")
+            result = result.replace(Regex("""\b${Regex.escape(name)}_pt\b"""), "1.0 / vec2(textureSize(uInput$index, 0))")
+        }
+
+        // Replace NAME_tex(expr) where expr may contain nested parens
+        result = replaceTexCall(result, inputNames)
+
+        return result
+    }
+
+    private fun replaceTexCall(code: String, inputNames: List<String>): String {
+        val pattern = Regex("""(\w+)_tex\s*\(""")
+        val sb = StringBuilder()
+        var i = 0
+        while (i < code.length) {
+            val match = pattern.find(code, i)
+            if (match == null) {
+                sb.append(code.substring(i))
+                break
+            }
+            sb.append(code.substring(i, match.range.first))
+            val name = match.groupValues[1]
+            val idx = inputNames.indexOf(name)
+            if (idx < 0) {
+                sb.append(match.value)
+                i = match.range.last + 1
+                continue
+            }
+            // Scan forward to find matching closing paren
+            var depth = 1
+            var j = match.range.last + 1
+            while (j < code.length && depth > 0) {
+                when (code[j]) {
+                    '(' -> depth++
+                    ')' -> depth--
+                }
+                j++
+            }
+            val arg = code.substring(match.range.last + 1, j - 1)
+            sb.append("texture(uInput$idx, $arg)")
+            i = j
+        }
+        return sb.toString()
+    }
+
     private fun transformMacro(macro: String, inputNames: List<String>): String {
         var result = macro
 
-        result = result.replace(Regex("""(\w+)_texOff\s*\(\s*vec2\s*\(\s*x_off\s*,\s*y_off\s*\)\s*\)""")) { match ->
+        result = result.replace(Regex("""(\w+)_texOff\s*\(\s*vec2\s*\(\s*x_off\s*,\s*y_off\s*\)\s*(\*\s*[\d.]+)?\s*\)""")) { match ->
             val texName = match.groupValues[1]
+            val extraScale = match.groupValues[2]
             val idx = inputNames.indexOf(texName)
             val sampler = if (idx >= 0) "uInput$idx" else "uInput0"
-            "texture($sampler, vTexCoord + vec2(x_off, y_off) * uTexelSize)"
+            "texture($sampler, vTexCoord + vec2(x_off, y_off)$extraScale * uTexelSize)"
         }
 
         result = result.replace(Regex("""(\w+)_tex\s*\(\s*\w+_pos\s*\)""")) { match ->

@@ -65,10 +65,15 @@
     <string name="deband_title">Debanding</string>
     <string name="deband_description">Reduce color banding artifacts for smoother gradients</string>
     <string name="anime4k_restore_title">Anime4K Restore</string>
-    <string name="anime4k_clamp_highlights_title">Clamp highlights</string>
+    <string name="anime4k_autodownscalepre_title">Anime4K AutoDownscalePre</string>
+    <string name="anime4k_upscale_title">Anime4K Upscale</string>
+    <string name="anime4k_clamp_highlights_title">Anime4K Clamp Highlights</string>
     <string name="anime4k_clamp_highlights_description">Clamp local highlight overshoot after restore processing</string>
     <string name="dither_title">Dithering</string>
     <string name="dither_description">Apply Bayer dithering during video rendering to mitigate banding</string>
+    <string name="render_pipeline_title">Render pipeline</string>
+    <string name="render_pipeline_empty">No effects active</string>
+    <string name="render_pipeline_separator">→</string>
     <string name="a_z">A-Z</string>
     <string name="z_a">Z-A</string>
     <string name="shortest">Shortest</string>

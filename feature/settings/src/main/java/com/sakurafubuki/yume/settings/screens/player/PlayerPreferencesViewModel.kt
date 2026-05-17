@@ -5,7 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.sakurafubuki.yume.core.common.extensions.round
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
+import com.sakurafubuki.yume.core.model.Anime4KAutoDownscalePreMode
 import com.sakurafubuki.yume.core.model.Anime4KRestoreMode
+import com.sakurafubuki.yume.core.model.Anime4KUpscaleMode
 import com.sakurafubuki.yume.core.model.ControlButtonsPosition
 import com.sakurafubuki.yume.core.model.PlayerPreferences
 import com.sakurafubuki.yume.core.model.Resume
@@ -52,9 +54,13 @@ class PlayerPreferencesViewModel @Inject constructor(
             is PlayerPreferencesUiEvent.UpdateControlAutoHideTimeout -> updateControlAutoHideTimeout(event.value)
             PlayerPreferencesUiEvent.ToggleUseMaterialYouControls -> toggleUseMaterialYouControls()
             is PlayerPreferencesUiEvent.UpdateAnime4KRestoreMode -> updateAnime4KRestoreMode(event.mode)
+            is PlayerPreferencesUiEvent.UpdateAnime4KUpscaleMode -> updateAnime4KUpscaleMode(event.mode)
+            is PlayerPreferencesUiEvent.UpdateAnime4KAutoDownscalePreMode -> updateAnime4KAutoDownscalePreMode(event.mode)
             PlayerPreferencesUiEvent.ToggleDeband -> toggleDeband()
             PlayerPreferencesUiEvent.ToggleAnime4KClampHighlights -> toggleAnime4KClampHighlights()
             PlayerPreferencesUiEvent.ToggleDither -> toggleDither()
+            is PlayerPreferencesUiEvent.MoveEffectUp -> moveEffect(event.index, -1)
+            is PlayerPreferencesUiEvent.MoveEffectDown -> moveEffect(event.index, 1)
         }
     }
 
@@ -170,6 +176,22 @@ class PlayerPreferencesViewModel @Inject constructor(
         }
     }
 
+    private fun updateAnime4KUpscaleMode(mode: Anime4KUpscaleMode) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(anime4KUpscaleMode = mode)
+            }
+        }
+    }
+
+    private fun updateAnime4KAutoDownscalePreMode(mode: Anime4KAutoDownscalePreMode) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences {
+                it.copy(anime4KAutoDownscalePreMode = mode)
+            }
+        }
+    }
+
     private fun toggleAnime4KClampHighlights() {
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
@@ -182,6 +204,20 @@ class PlayerPreferencesViewModel @Inject constructor(
         viewModelScope.launch {
             preferencesRepository.updatePlayerPreferences {
                 it.copy(enableDither = !it.enableDither)
+            }
+        }
+    }
+
+    private fun moveEffect(fromIndex: Int, direction: Int) {
+        viewModelScope.launch {
+            preferencesRepository.updatePlayerPreferences { prefs ->
+                val order = prefs.videoEffectsOrder.toMutableList()
+                val toIndex = (fromIndex + direction).coerceIn(0, order.lastIndex)
+                if (fromIndex != toIndex) {
+                    val item = order.removeAt(fromIndex)
+                    order.add(toIndex, item)
+                }
+                prefs.copy(videoEffectsOrder = order)
             }
         }
     }
@@ -198,6 +234,8 @@ sealed interface PlayerPreferenceDialog {
     data object PlayerScreenOrientationDialog : PlayerPreferenceDialog
     data object ControlButtonsDialog : PlayerPreferenceDialog
     data object Anime4KRestoreDialog : PlayerPreferenceDialog
+    data object Anime4KUpscaleDialog : PlayerPreferenceDialog
+    data object Anime4KAutoDownscalePreDialog : PlayerPreferenceDialog
 }
 
 sealed interface PlayerPreferencesUiEvent {
@@ -214,7 +252,11 @@ sealed interface PlayerPreferencesUiEvent {
     data class UpdateControlAutoHideTimeout(val value: Int) : PlayerPreferencesUiEvent
     data object ToggleUseMaterialYouControls : PlayerPreferencesUiEvent
     data class UpdateAnime4KRestoreMode(val mode: Anime4KRestoreMode) : PlayerPreferencesUiEvent
+    data class UpdateAnime4KUpscaleMode(val mode: Anime4KUpscaleMode) : PlayerPreferencesUiEvent
+    data class UpdateAnime4KAutoDownscalePreMode(val mode: Anime4KAutoDownscalePreMode) : PlayerPreferencesUiEvent
     data object ToggleDeband : PlayerPreferencesUiEvent
     data object ToggleAnime4KClampHighlights : PlayerPreferencesUiEvent
     data object ToggleDither : PlayerPreferencesUiEvent
+    data class MoveEffectUp(val index: Int) : PlayerPreferencesUiEvent
+    data class MoveEffectDown(val index: Int) : PlayerPreferencesUiEvent
 }

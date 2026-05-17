@@ -10,7 +10,9 @@ import androidx.media3.effect.BaseGlShaderProgram
 import androidx.media3.effect.GlEffect
 import androidx.media3.effect.GlShaderProgram
 import com.sakurafubuki.yume.core.common.Logger
+import com.sakurafubuki.yume.core.model.Anime4KAutoDownscalePreMode
 import com.sakurafubuki.yume.core.model.Anime4KRestoreMode
+import com.sakurafubuki.yume.core.model.Anime4KUpscaleMode
 
 @UnstableApi
 class Anime4KRestoreEffect(
@@ -180,3 +182,104 @@ private val CLAMP_HIGHLIGHTS_FRAG = """
         fragColor = vec4(clamp(c.rgb - (current - target), 0.0, 1.0), c.a);
     }
 """.trimIndent()
+
+@UnstableApi
+class Anime4KUpscaleEffect(
+    private val upscaleMode: Anime4KUpscaleMode,
+    private val downscalePreMode: Anime4KAutoDownscalePreMode = Anime4KAutoDownscalePreMode.OFF,
+) : GlEffect {
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram {
+        val assetPath = when (upscaleMode) {
+            Anime4KUpscaleMode.CNN_X2_M -> "Anime4K_Upscale_CNN_x2_M.glsl"
+            Anime4KUpscaleMode.CNN_X2_L -> "Anime4K_Upscale_CNN_x2_L.glsl"
+            Anime4KUpscaleMode.GAN_X2_M -> "Anime4K_Upscale_GAN_x2_M.glsl"
+            Anime4KUpscaleMode.OFF -> error("toGlShaderProgram called for OFF mode")
+        }
+        val dsFactor = when (downscalePreMode) {
+            Anime4KAutoDownscalePreMode.X4 -> 0.5f
+            Anime4KAutoDownscalePreMode.X2 -> 1.0f
+            Anime4KAutoDownscalePreMode.OFF -> 1.0f
+        }
+        return Anime4KCNNShaderProgram(useHdr, context, assetPath, dsFactor)
+    }
+
+    override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = upscaleMode == Anime4KUpscaleMode.OFF
+}
+
+@UnstableApi
+class Anime4KAutoDownscalePreEffect(
+    private val mode: Anime4KAutoDownscalePreMode,
+) : GlEffect {
+    override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram = Anime4KAutoDownscalePreShaderProgram(useHdr, mode)
+
+    override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = mode == Anime4KAutoDownscalePreMode.OFF
+}
+
+@UnstableApi
+private class Anime4KAutoDownscalePreShaderProgram(
+    useHdr: Boolean,
+    private val mode: Anime4KAutoDownscalePreMode,
+) : BaseGlShaderProgram(useHdr, 1) {
+    private var program: GlProgram? = null
+    private var passThroughProgram: GlProgram? = null
+    private var failed = false
+    private var downscaleW = 0
+    private var downscaleH = 0
+
+    override fun configure(inputWidth: Int, inputHeight: Int): Size {
+        passThroughProgram = runCatching { GlProgram(VERTEX_SHADER, PASS_THROUGH_FRAG).also(::setupVertexBuffers) }
+            .onFailure { Logger.w(TAG, "AutoDownscalePre pass-through compilation failed", it) }
+            .getOrNull()
+        program = runCatching { GlProgram(VERTEX_SHADER, PASS_THROUGH_FRAG).also(::setupVertexBuffers) }
+            .onFailure {
+                Logger.w(TAG, "AutoDownscalePre shader compilation failed", it)
+                failed = true
+            }
+            .getOrNull()
+        downscaleW = when (mode) {
+            Anime4KAutoDownscalePreMode.X4 -> inputWidth / 2
+            else -> inputWidth
+        }
+        downscaleH = when (mode) {
+            Anime4KAutoDownscalePreMode.X4 -> inputHeight / 2
+            else -> inputHeight
+        }
+        Logger.i(TAG, "AutoDownscalePre mode=$mode input=${inputWidth}x$inputHeight → output=${downscaleW}x$downscaleH")
+        return Size(downscaleW, downscaleH)
+    }
+
+    override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
+        val outputFbo = currentFramebuffer()
+        if (failed) {
+            drawPassThrough(inputTexId, outputFbo, passThroughProgram)
+            return
+        }
+        try {
+            val viewport = currentViewport()
+            val width = viewport[2]
+            val height = viewport[3]
+            if (width <= 0 || height <= 0) {
+                drawPassThrough(inputTexId, outputFbo, passThroughProgram)
+                return
+            }
+            GLES30.glBindFramebuffer(GLES30.GL_FRAMEBUFFER, outputFbo)
+            GLES30.glViewport(0, 0, width, height)
+            program!!.use()
+            program!!.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
+            program!!.bindAttributesAndUniforms()
+            GLES30.glDrawArrays(GLES30.GL_TRIANGLE_STRIP, 0, 4)
+        } catch (e: Exception) {
+            Logger.w(TAG, "AutoDownscalePre drawFrame failed", e)
+            failed = true
+            drawPassThrough(inputTexId, outputFbo, passThroughProgram)
+        }
+    }
+
+    override fun release() {
+        super.release()
+        program?.delete()
+        passThroughProgram?.delete()
+        program = null
+        passThroughProgram = null
+    }
+}

@@ -56,9 +56,19 @@ data class PlayerPreferences(
     val decoderPriority: DecoderPriority = DecoderPriority.PREFER_DEVICE,
 
     val anime4KRestoreMode: Anime4KRestoreMode = Anime4KRestoreMode.OFF,
+    val anime4KUpscaleMode: Anime4KUpscaleMode = Anime4KUpscaleMode.OFF,
+    val anime4KAutoDownscalePreMode: Anime4KAutoDownscalePreMode = Anime4KAutoDownscalePreMode.OFF,
     val enableDeband: Boolean = false,
     val enableAnime4KClampHighlights: Boolean = false,
     val enableDither: Boolean = false,
+    val videoEffectsOrder: List<VideoEffectType> = listOf(
+        VideoEffectType.RESTORE,
+        VideoEffectType.AUTODOWNSCALEPRE,
+        VideoEffectType.UPSCALE,
+        VideoEffectType.CLAMP_HIGHLIGHTS,
+        VideoEffectType.DEBAND,
+        VideoEffectType.DITHER,
+    ),
 ) {
 
     companion object {
@@ -77,4 +87,29 @@ enum class Anime4KRestoreMode {
     OFF,
     L,
     M,
+}
+
+@Serializable
+enum class Anime4KUpscaleMode {
+    OFF,
+    CNN_X2_L,
+    CNN_X2_M,
+    GAN_X2_M,
+}
+
+@Serializable
+enum class Anime4KAutoDownscalePreMode {
+    OFF,
+    X2,
+    X4,
+}
+
+@Serializable
+enum class VideoEffectType {
+    AUTODOWNSCALEPRE,
+    RESTORE,
+    UPSCALE,
+    DEBAND,
+    CLAMP_HIGHLIGHTS,
+    DITHER,
 }

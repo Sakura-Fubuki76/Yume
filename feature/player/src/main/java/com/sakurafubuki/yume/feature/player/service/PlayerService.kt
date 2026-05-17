@@ -60,7 +60,6 @@ import com.sakurafubuki.yume.core.data.repository.MoovIndexCache
 import com.sakurafubuki.yume.core.data.repository.Mp4KeyframeExtractor
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
-import com.sakurafubuki.yume.core.model.Anime4KAutoDownscalePreMode
 import com.sakurafubuki.yume.core.model.Anime4KRestoreMode
 import com.sakurafubuki.yume.core.model.Anime4KUpscaleMode
 import com.sakurafubuki.yume.core.model.CloudVideoMetadata
@@ -68,6 +67,7 @@ import com.sakurafubuki.yume.core.model.DecoderPriority
 import com.sakurafubuki.yume.core.model.LoopMode
 import com.sakurafubuki.yume.core.model.PlayerPreferences
 import com.sakurafubuki.yume.core.model.Resume
+import com.sakurafubuki.yume.core.model.VideoEffectType
 import com.sakurafubuki.yume.core.model.WebDavServer
 import com.sakurafubuki.yume.core.ui.R as coreUiR
 import com.sakurafubuki.yume.feature.player.PlayerActivity
@@ -76,6 +76,7 @@ import com.sakurafubuki.yume.feature.player.ass.AssSubtitleState
 import com.sakurafubuki.yume.feature.player.audio.SoundTouchRenderersFactory
 import com.sakurafubuki.yume.feature.player.effect.Anime4KClampHighlightsEffect
 import com.sakurafubuki.yume.feature.player.effect.Anime4KRestoreEffect
+import com.sakurafubuki.yume.feature.player.effect.Anime4KUpscaleEffect
 import com.sakurafubuki.yume.feature.player.effect.DebandEffect
 import com.sakurafubuki.yume.feature.player.effect.DitherEffect
 import com.sakurafubuki.yume.feature.player.extensions.addAdditionalSubtitleConfiguration
@@ -112,6 +113,8 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+
+private const val TAG = "PlayerService"
 
 @OptIn(UnstableApi::class)
 @AndroidEntryPoint
@@ -803,14 +806,22 @@ class PlayerService : MediaSessionService() {
             )
             .setHandleAudioBecomingNoisy(playerPreferences.pauseOnHeadsetDisconnect)
             .build()
-            .also {
-                val effects = mutableListOf<androidx.media3.common.Effect>()
-                if (playerPreferences.anime4KRestoreMode != Anime4KRestoreMode.OFF) {
-                    effects.add(Anime4KRestoreEffect(playerPreferences.anime4KRestoreMode))
+            .also { it ->
+                val orderedTypes = playerPreferences.videoEffectsOrder
+                val effects = orderedTypes.mapNotNull { type ->
+                    when (type) {
+                        VideoEffectType.AUTODOWNSCALEPRE -> null // Merged into UPSCALE as downscaleFactor parameter
+                        VideoEffectType.UPSCALE -> playerPreferences.anime4KUpscaleMode.takeIf { it != Anime4KUpscaleMode.OFF }
+                            ?.let { Anime4KUpscaleEffect(it, playerPreferences.anime4KAutoDownscalePreMode) }
+                        VideoEffectType.RESTORE -> playerPreferences.anime4KRestoreMode.takeIf { it != Anime4KRestoreMode.OFF }
+                            ?.let { Anime4KRestoreEffect(it) }
+                        VideoEffectType.DEBAND -> if (playerPreferences.enableDeband) DebandEffect() else null
+                        VideoEffectType.CLAMP_HIGHLIGHTS -> if (playerPreferences.enableAnime4KClampHighlights) Anime4KClampHighlightsEffect() else null
+                        VideoEffectType.DITHER -> if (playerPreferences.enableDither) DitherEffect() else null
+                    }
                 }
-                if (playerPreferences.enableDeband) effects.add(DebandEffect())
-                if (playerPreferences.enableAnime4KClampHighlights) effects.add(Anime4KClampHighlightsEffect())
-                if (playerPreferences.enableDither) effects.add(DitherEffect())
+                Logger.i(TAG, "Effect pipeline (${effects.size} active): ${effects.joinToString(" → ") { it::class.simpleName ?: "?" }}")
+                Logger.i(TAG, "DownscalePre=${playerPreferences.anime4KAutoDownscalePreMode} Upscale=${playerPreferences.anime4KUpscaleMode}")
                 it.setVideoEffects(effects)
                 it.addListener(playbackStateListener)
                 it.pauseAtEndOfMediaItems = !playerPreferences.autoplay
