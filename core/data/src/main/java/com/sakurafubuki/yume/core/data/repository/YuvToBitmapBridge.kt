@@ -7,7 +7,7 @@ import java.nio.ByteBuffer
 object YuvToBitmapBridge {
 
     init {
-        System.loadLibrary("yuv_to_bitmap")
+        System.loadLibrary("yume_yuv")
     }
 
     @JvmStatic

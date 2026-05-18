@@ -102,7 +102,6 @@ class VideoInfoState(private val player: Player) {
         }
 
     @androidx.annotation.OptIn(UnstableApi::class)
-    @OptIn(UnstableApi::class)
     suspend fun observe() {
         title = player.mediaMetadata.title?.toString()
         refreshTracks(player.currentTracks)
@@ -126,7 +125,6 @@ class VideoInfoState(private val player: Player) {
     }
 
     @androidx.annotation.OptIn(UnstableApi::class)
-    @OptIn(UnstableApi::class)
     private fun refreshTracks(tracks: Tracks) {
         for (group in tracks.groups) {
             if (group.type != C.TRACK_TYPE_VIDEO || !group.isTrackSupported(0)) continue

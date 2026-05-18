@@ -72,7 +72,6 @@ import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Label
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.LocalMovies
 import androidx.compose.material.icons.rounded.LocationOn
@@ -195,7 +194,7 @@ object NextIcons {
     val Home = Icons.Rounded.Home
     val Image = Icons.Rounded.Image
     val Info = Icons.Rounded.Info
-    val Label = Icons.Rounded.Label
+
     val Language = Icons.Rounded.Translate
     val Length = Icons.Rounded.Straighten
     val Link = Icons.Rounded.Link

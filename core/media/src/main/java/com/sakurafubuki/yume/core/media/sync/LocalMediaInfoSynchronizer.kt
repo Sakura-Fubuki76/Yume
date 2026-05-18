@@ -13,10 +13,10 @@ import com.sakurafubuki.yume.core.database.entities.AudioStreamInfoEntity
 import com.sakurafubuki.yume.core.database.entities.SubtitleStreamInfoEntity
 import com.sakurafubuki.yume.core.database.entities.VideoStreamInfoEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.anilbeesetti.nextlib.mediainfo.AudioStream
-import io.github.anilbeesetti.nextlib.mediainfo.MediaInfoBuilder
-import io.github.anilbeesetti.nextlib.mediainfo.SubtitleStream
-import io.github.anilbeesetti.nextlib.mediainfo.VideoStream
+import io.github.sakurafubuki.yume.nativelib.mediainfo.AudioStream
+import io.github.sakurafubuki.yume.nativelib.mediainfo.MediaInfoBuilder
+import io.github.sakurafubuki.yume.nativelib.mediainfo.SubtitleStream
+import io.github.sakurafubuki.yume.nativelib.mediainfo.VideoStream
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope

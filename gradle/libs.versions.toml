@@ -30,7 +30,6 @@ ksp = "2.3.7"
 ktlint = "14.2.0"
 reorderable = "3.1.0"
 room = "2.8.4"
-nextlib = "1.10.0-0.12.1"
 
 universalChardet = "2.5.0"
 sardine = "0.9"
@@ -38,6 +37,7 @@ securityCrypto = "1.1.0"
 disklrucache = "2.0.2"
 documentfile = "1.1.0"
 soundtouch = "1.1.1"
+yume-lib = "1.0.0"
 
 
 [libraries]
@@ -80,8 +80,6 @@ coil-core = { module = "io.coil-kt.coil3:coil", version.ref = "coil" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-okhttp = { module = "io.coil-kt.coil3:coil-network-okhttp", version.ref = "coil" }
 github-albfernandez-juniversalchardet = { group="com.github.albfernandez", name = "juniversalchardet", version.ref="universalChardet" }
-github-anilbeesetti-nextlib-media3ext = { group = "io.github.anilbeesetti", name = "nextlib-media3ext", version.ref = "nextlib" }
-github-anilbeesetti-nextlib-mediainfo = { group = "io.github.anilbeesetti", name = "nextlib-mediainfo", version.ref = "nextlib" }
 google-android-material = { group = "com.google.android.material", name = "material", version.ref = "androidMaterial" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
@@ -96,8 +94,8 @@ sardine-android = { group = "com.github.thegrizzlylabs", name = "sardine-android
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 jakewharton-disklrucache = { group = "com.jakewharton", name = "disklrucache", version.ref = "disklrucache" }
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
-soundtouch-jni-android = { group = "com.tianscar.soundtouch", name = "soundtouch-jni-android", version.ref = "soundtouch" }
 soundtouch-jni-core = { group = "com.tianscar.soundtouch", name = "soundtouch-jni-core", version.ref = "soundtouch" }
+yume-lib = { group = "io.github.sakurafubuki.yume", name = "yume-lib", version.ref = "yume-lib" }
 
 
 [plugins]

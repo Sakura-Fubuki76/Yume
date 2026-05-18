@@ -246,7 +246,7 @@ private fun ThumbnailView(
                 "storeThumb=${VideoThumbnailStore.thumbnailUriMap[mediaItem.mediaId]?.take(80)} " +
                 "durationMs=${mediaItem.mediaMetadata.durationMs} " +
                 "storeDuration=${VideoThumbnailStore.durationMsMap[mediaItem.mediaId]} " +
-                "thumbnailData=${thumbnailData.toString().take(80)}",
+                "thumbnailData=${thumbnailData.take(80)}",
         )
         val request = ImageRequest.Builder(context)
             .data(thumbnailData)

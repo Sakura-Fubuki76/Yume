@@ -116,6 +116,7 @@ class SoundTouchAudioProcessor : AudioProcessor {
         return inputEnded && !outputBuffer.hasRemaining() && (soundTouch?.numSamples() ?: 0L) == 0L
     }
 
+    @Deprecated("Use flush(StreamMetadata) instead")
     override fun flush() {
         flush(AudioProcessor.StreamMetadata.DEFAULT)
     }

@@ -136,7 +136,7 @@ fun MediaPlayerScreen(
     val metadataState = rememberMetadataState(player)
     LaunchedEffect(player.currentMediaItem?.mediaId) {
         val mediaId = player.currentMediaItem?.mediaId ?: return@LaunchedEffect
-        val autoUri = AssSubtitleState.autoSelectAssByMediaId.remove(mediaId) as? Uri
+        val autoUri = AssSubtitleState.autoSelectAssByMediaId.remove(mediaId)
         if (autoUri != null) selectedAssUri = autoUri
     }
     val mediaPresentationState = rememberMediaPresentationState(player)

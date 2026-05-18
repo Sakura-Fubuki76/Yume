@@ -33,7 +33,7 @@ dependencies {
     implementation(project(":core:model"))
 
     implementation(libs.androidx.core.ktx)
-    implementation(libs.github.anilbeesetti.nextlib.mediainfo)
+    implementation(libs.yume.lib)
     implementation(libs.coil.core)
 
     // Hilt

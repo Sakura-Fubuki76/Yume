@@ -18,21 +18,22 @@ suspend fun File.getSubtitles(): List<File> = withContext(Dispatchers.IO) {
         File(parentDir, "$mediaName.$ext").takeIf { it.exists() && it.isFile }
     }
 
-    val variantMatches = parentDir.listFiles()?.filter { file ->
+    val files = parentDir?.listFiles()?.asList() ?: emptyList()
+    val variantMatches = files.filter { file ->
         file.isFile &&
             file.name.startsWith("$mediaName.") &&
             file.extension.lowercase() in extSet &&
             file.name !in exactMatches.map { it.name }
-    } ?: emptyList()
+    }
 
     val strictMatches = exactMatches + variantMatches
     val strictNames = strictMatches.map { it.name }.toSet()
-    val fuzzyMatches = parentDir.listFiles()?.filter { file ->
+    val fuzzyMatches = files.filter { file ->
         file.isFile &&
             file.extension.lowercase() in extSet &&
             file.name !in strictNames &&
             fuzzyMatchNames(mediaName, file.nameWithoutExtension)
-    } ?: emptyList()
+    }
 
     strictMatches + fuzzyMatches
 }

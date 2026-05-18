@@ -69,11 +69,11 @@ dependencies {
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.media3.datasource.okhttp)
     implementation(libs.androidx.media3.effect)
-    implementation(libs.github.anilbeesetti.nextlib.media3ext)
+    implementation(libs.yume.lib)
 
+    implementation(libs.soundtouch.jni.core)
     implementation(libs.jakewharton.disklrucache)
     implementation(libs.androidx.documentfile)
-    implementation(libs.soundtouch.jni.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)
 

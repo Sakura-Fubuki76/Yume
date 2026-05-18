@@ -59,6 +59,7 @@ run_debug.bat
 
 # Prebuilt native libraries (downloaded via script)
 app/src/main/cpp/libass/
+app/libs/
 
 exoplayer_internal_debug.db
 *.compose_stability

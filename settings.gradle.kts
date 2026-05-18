@@ -10,26 +10,20 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://maven.pkg.github.com/Sakura-Fubuki76/yume-lib")
+            credentials {
+                username = providers.gradleProperty("gpr.user")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                    .getOrElse("")
+                password = providers.gradleProperty("gpr.token")
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                    .getOrElse("")
+            }
+        }
         maven { url = uri("https://jitpack.io") }
     }
 }
-
-
-/**
- * Use a local copy of nextlib, if it exists by uncommenting the below lines
- * Assuming, that nextplayer and nextlib have the same parent directory.
- * If this is not the case, please change the nextLibDirPath.
- */
-
-//val nextLibDirPath = "../nextlib"
-//if (File(nextLibDirPath).exists()) {
-//    includeBuild(nextLibDirPath) {
-//        dependencySubstitution {
-//            substitute(module("io.github.anilbeesetti:nextlib-media3ext")).using(project(":media3ext"))
-//            substitute(module("io.github.anilbeesetti:nextlib-mediainfo")).using(project(":mediainfo"))
-//        }
-//    }
-//}
 
 rootProject.name = "Yume"
 include(":app")

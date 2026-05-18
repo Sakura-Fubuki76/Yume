@@ -4,7 +4,7 @@ import android.view.Surface
 
 object AssRenderer {
     init {
-        System.loadLibrary("ass_jni")
+        System.loadLibrary("yume_subtitle")
     }
 
     external fun nativeInit(configPath: String?): Long

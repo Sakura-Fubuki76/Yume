@@ -23,7 +23,7 @@ import com.sakurafubuki.yume.core.model.ThumbnailGenerationStrategy
 import com.sakurafubuki.yume.core.model.WebDavMediaItem
 import com.sakurafubuki.yume.core.model.WebDavServer
 import dagger.hilt.android.qualifiers.ApplicationContext
-import io.github.anilbeesetti.nextlib.mediainfo.MediaThumbnailRetriever
+import io.github.sakurafubuki.yume.nativelib.mediainfo.MediaThumbnailRetriever
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest

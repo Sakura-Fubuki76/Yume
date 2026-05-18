@@ -36,7 +36,7 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:model"))
     implementation(project(":core:datastore"))
-    implementation(libs.github.anilbeesetti.nextlib.mediainfo)
+    implementation(libs.yume.lib)
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.coil.core)

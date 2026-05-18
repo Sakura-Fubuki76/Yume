@@ -230,7 +230,7 @@ fun PlayerContentFrame(
                         "codecs=${fmt.codecs}, sampleMime=${fmt.sampleMimeType}",
                 )
                 if (fmt.width > 0 && fmt.height > 0) {
-                    return VideoSize(fmt.width, fmt.height, fmt.rotationDegrees, fmt.pixelWidthHeightRatio)
+                    return VideoSize(fmt.width, fmt.height, fmt.pixelWidthHeightRatio)
                 }
             }
         }

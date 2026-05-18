@@ -31,7 +31,7 @@ import coil3.util.component1
 import coil3.util.component2
 import com.sakurafubuki.yume.core.data.repository.FilterMode
 import com.sakurafubuki.yume.core.data.repository.YuvToBitmapBridge
-import io.github.anilbeesetti.nextlib.mediainfo.MediaThumbnailRetriever
+import io.github.sakurafubuki.yume.nativelib.mediainfo.MediaThumbnailRetriever
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import okio.FileSystem
@@ -154,7 +154,7 @@ class VideoThumbnailDecoder(
                 val embeddedPicture = if (nativeOk) {
                     runCatching { nativeRetriever.embeddedPicture }.getOrNull()
                 } else {
-                    null ?: if (ffmpegOk) {
+                    if (ffmpegOk) {
                         runCatching { ffmpegRetriever.getEmbeddedPicture() }.getOrNull()
                     } else {
                         null
@@ -215,8 +215,7 @@ class VideoThumbnailDecoder(
                                 ?: if (ffmpegOk) {
                                     runCatching { ffmpegRetriever.getFrameAtTime(timeUs) }.getOrNull()
                                 } else {
-                                    null
-                                        ?: if (nativeOk) nativeRetriever.getScaledFrame(0, targetW, targetH) else null
+                                    if (nativeOk) nativeRetriever.getScaledFrame(0, targetW, targetH) else null
                                 }
                         } else {
                             nativeRetriever.getScaledFrame(0, targetW, targetH)

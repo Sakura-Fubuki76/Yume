@@ -1,6 +1,0 @@
-[submodule "app/src/main/cpp/libyuv"]
-	path = app/src/main/cpp/libyuv
-	url = https://chromium.googlesource.com/libyuv/libyuv
-[submodule "app/src/main/cpp/soundtouch"]
-	path = app/src/main/cpp/soundtouch
-	url = https://codeberg.org/soundtouch/soundtouch.git

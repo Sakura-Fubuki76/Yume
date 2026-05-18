@@ -113,6 +113,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.ResponseBody.Companion.toResponseBody
 
 private const val TAG = "PlayerService"
 
@@ -563,9 +564,7 @@ class PlayerService : MediaSessionService() {
                                 uri = subtitleUri,
                                 subtitleEncoding = playerPreferences.subtitleTextEncoding,
                             )
-                            newSubConfiguration?.let {
-                                player.addAdditionalSubtitleConfiguration(it)
-                            }
+                            player.addAdditionalSubtitleConfiguration(newSubConfiguration)
                         }
                     }
                     return@future SessionResult(SessionResult.RESULT_SUCCESS)
@@ -720,7 +719,7 @@ class PlayerService : MediaSessionService() {
                             .message("OK (cached)")
                             .header("Content-Length", cachedLength.toString())
                             .header("Accept-Ranges", "bytes")
-                            .body(okhttp3.ResponseBody.create(null, ByteArray(0)))
+                            .body(ByteArray(0).toResponseBody(null))
                             .build()
                     }
                 }
@@ -1461,7 +1460,7 @@ private class ScrubbingAwareLoadControl(
     override fun onTracksSelected(
         parameters: LoadControl.Parameters,
         trackGroups: TrackGroupArray,
-        trackSelections: Array<out ExoTrackSelection>,
+        trackSelections: Array<out ExoTrackSelection?>,
     ) {
         delegate.onTracksSelected(parameters, trackGroups, trackSelections)
     }

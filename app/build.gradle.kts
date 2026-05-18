@@ -11,7 +11,7 @@ plugins {
 android {
     namespace = "com.sakurafubuki.yume"
 
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "29.0.14206865"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
@@ -25,13 +25,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
     }
 
     compileOptions {
@@ -158,6 +151,5 @@ dependencies {
 
     implementation(libs.accompanist.permissions)
 
-    implementation(libs.github.anilbeesetti.nextlib.mediainfo)
-    debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation(libs.yume.lib)
 }
