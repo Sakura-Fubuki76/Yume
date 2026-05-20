@@ -53,6 +53,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 @HiltViewModel
@@ -418,7 +420,7 @@ class MediaPickerViewModel @Inject constructor(
             ?: return
         val path = normalizePath(state.cloudPath.ifBlank { server.basePath })
         val preferences = state.preferences
-        val loadKey = "${server.id}:$path"
+        val loadKey = "${server.id}:$path:${preferences.mediaViewMode}:${preferences.sortBy}:${preferences.sortOrder}"
 
         if (!refreshing && cloudLoadJob?.isActive == true && activeCloudLoadKey == loadKey) {
             return
@@ -709,7 +711,9 @@ class MediaPickerViewModel @Inject constructor(
                     cachedMediaDuration = folders.sumOf { it.mediaDuration },
                 )
             }
-            MediaViewMode.VIDEOS -> {
+            MediaViewMode.IMAGE,
+            MediaViewMode.VIDEOS,
+            -> {
                 val videos = indexedRoots
                     .flatMap { it.mediaList }
                     .sortedWith(sort.videoComparator())
@@ -738,13 +742,30 @@ class MediaPickerViewModel @Inject constructor(
         if (indexedVideos.isEmpty()) return null
         val sort = Sort(by = preferences.sortBy, order = preferences.sortOrder)
         val indexedByParent = indexedVideos.groupBy { it.parentPath }
-        val itemsByParent = indexedByParent.mapValues { (parentPath, videos) ->
-            loadIndexedParentVideoItems(
+        if (preferences.mediaViewMode == MediaViewMode.FOLDERS) {
+            return buildIndexedCloudFoldersOnly(
                 server = server,
-                parentPath = parentPath,
-                indexedVideos = videos,
+                path = path,
+                indexedByParent = indexedByParent,
+                sort = sort,
                 refreshing = refreshing,
             )
+        }
+
+        val parentListSemaphore = Semaphore(CLOUD_INDEX_PARENT_LIST_MAX_CONCURRENCY)
+        val itemsByParent = coroutineScope {
+            indexedByParent.map { (parentPath, videos) ->
+                async(Dispatchers.IO) {
+                    parentListSemaphore.withPermit {
+                        parentPath to loadIndexedParentVideoItems(
+                            server = server,
+                            parentPath = parentPath,
+                            indexedVideos = videos,
+                            refreshing = refreshing,
+                        )
+                    }
+                }
+            }.awaitAll().toMap()
         }
         val allItems = itemsByParent.values.flatten()
         val metadataByHref = if (allItems.isEmpty()) {
@@ -768,36 +789,10 @@ class MediaPickerViewModel @Inject constructor(
 
         return when (preferences.mediaViewMode) {
             MediaViewMode.FOLDER_TREE -> null
-            MediaViewMode.FOLDERS -> {
-                val folders = videosByParent.mapNotNull { (parentPath, videos) ->
-                    if (videos.isEmpty()) return@mapNotNull null
-                    Folder(
-                        name = cloudFolderDisplayName(server, parentPath),
-                        path = encodeCloudFolderPath(server.id, parentPath),
-                        dateModified = videos.maxOfOrNull { it.dateModified } ?: 0L,
-                        parentPath = "/",
-                        mediaList = videos,
-                        folderList = emptyList(),
-                        mediaCount = videos.size,
-                        folderCount = 0,
-                        cachedMediaSize = videos.sumOf { it.size },
-                        cachedMediaDuration = videos.sumOf { it.duration },
-                    )
-                }.sortedWith(sort.folderComparator())
-                if (folders.isEmpty()) return null
-                Folder(
-                    name = cloudFolderDisplayName(server, path),
-                    path = encodeCloudFolderPath(server.id, path),
-                    dateModified = folders.maxOfOrNull { it.dateModified } ?: 0L,
-                    folderList = folders,
-                    mediaList = emptyList(),
-                    mediaCount = 0,
-                    folderCount = folders.size,
-                    cachedMediaSize = folders.sumOf { it.mediaSize },
-                    cachedMediaDuration = folders.sumOf { it.mediaDuration },
-                )
-            }
-            MediaViewMode.VIDEOS -> {
+            MediaViewMode.FOLDERS -> null
+            MediaViewMode.IMAGE,
+            MediaViewMode.VIDEOS,
+            -> {
                 val videos = videosByParent.values.flatten().sortedWith(sort.videoComparator())
                 if (videos.isEmpty()) return null
                 Folder(
@@ -815,24 +810,82 @@ class MediaPickerViewModel @Inject constructor(
         }
     }
 
+    private suspend fun buildIndexedCloudFoldersOnly(
+        server: WebDavServer,
+        path: String,
+        indexedByParent: Map<String, List<CloudIndexedVideo>>,
+        sort: Sort,
+        refreshing: Boolean,
+    ): Folder? {
+        val normalizedPath = normalizePath(path)
+        val directIndexedVideos = indexedByParent[normalizedPath].orEmpty()
+        val directVideos = if (directIndexedVideos.isEmpty()) {
+            emptyList()
+        } else {
+            val directItems = loadIndexedParentVideoItems(
+                server = server,
+                parentPath = normalizedPath,
+                indexedVideos = directIndexedVideos,
+                refreshing = refreshing,
+            )
+            val metadataByHref = cloudVideoMetadataRepository.getMetadata(
+                serverId = server.id,
+                hrefs = directItems.map { it.href }.distinct(),
+            )
+            directItems.map { item ->
+                mapCloudVideo(
+                    server = server,
+                    currentPath = normalizedPath,
+                    item = item,
+                    metadataByHref = metadataByHref,
+                )
+            }.sortedWith(sort.videoComparator())
+        }
+
+        val folders = indexedByParent
+            .filterKeys { normalizePath(it) != normalizedPath }
+            .mapNotNull { (parentPath, indexedVideos) ->
+                if (indexedVideos.isEmpty()) return@mapNotNull null
+                Folder(
+                    name = cloudFolderDisplayName(server, parentPath),
+                    path = encodeCloudFolderPath(server.id, parentPath),
+                    dateModified = 0L,
+                    parentPath = cloudFolderParentDisplayPath(server, parentPath),
+                    mediaList = emptyList(),
+                    folderList = emptyList(),
+                    mediaCount = indexedVideos.size,
+                    folderCount = 0,
+                    cachedMediaSize = indexedVideos.sumOf { it.item.size },
+                    cachedMediaDuration = 0L,
+                )
+            }
+            .sortedWith(sort.folderComparator())
+
+        if (folders.isEmpty() && directVideos.isEmpty()) return null
+        return Folder(
+            name = cloudFolderDisplayName(server, normalizedPath),
+            path = normalizePath(path),
+            dateModified = directVideos.maxOfOrNull { it.dateModified } ?: 0L,
+            folderList = folders,
+            mediaList = directVideos,
+            mediaCount = directVideos.size,
+            folderCount = folders.size,
+            cachedMediaSize = folders.sumOf { it.mediaSize } + directVideos.sumOf { it.size },
+            cachedMediaDuration = directVideos.sumOf { it.duration },
+        )
+    }
+
     private suspend fun searchIndexedCloudVideos(
         server: WebDavServer,
         path: String,
     ): List<CloudIndexedVideo>? {
-        val broadSearch = searchIndexedCloudVideos(
-            server = server,
-            path = path,
-            keywords = "",
-        ) ?: return null
-        if (broadSearch.isNotEmpty()) return broadSearch
-
         val keyedResults = mutableListOf<CloudIndexedVideo>()
         val seen = mutableSetOf<String>()
         for (extension in CLOUD_INDEX_VIDEO_EXTENSIONS) {
             val extensionResults = searchIndexedCloudVideos(
                 server = server,
                 path = path,
-                keywords = extension,
+                keywords = ".$extension",
             ) ?: return null
             extensionResults.forEach { indexed ->
                 val key = "${normalizePath(indexed.parentPath)}/${indexed.item.name}"
@@ -873,7 +926,6 @@ class MediaPickerViewModel @Inject constructor(
                     CLOUD_SEARCH_LOG_TAG,
                     "search result too large server=${server.id} path=$path keywords=$keywords total=${data.total}",
                 )
-                if (keywords.isBlank()) return emptyList()
                 return null
             }
             val content = data.content.orEmpty()
@@ -1103,20 +1155,33 @@ class MediaPickerViewModel @Inject constructor(
             }
 
             MediaViewMode.FOLDERS -> {
-                val folders = folder.collectCloudVideoLeafFolders()
+                val folders = folder.folderList
+                    .flatMap { it.collectCloudVideoLeafFolders() }
                     .distinctBy { it.path }
                     .sortedWith(sort.folderComparator())
-                folder.copy(
-                    mediaList = emptyList(),
-                    folderList = folders,
-                    mediaCount = 0,
-                    folderCount = folders.size,
-                    cachedMediaSize = folders.sumOf { it.mediaSize },
-                    cachedMediaDuration = folders.sumOf { it.mediaDuration },
-                )
+                if (folders.isEmpty() && folder.mediaList.isNotEmpty()) {
+                    folder.copy(
+                        folderList = emptyList(),
+                        mediaCount = folder.mediaList.size,
+                        folderCount = 0,
+                        cachedMediaSize = folder.mediaList.sumOf { it.size },
+                        cachedMediaDuration = folder.mediaList.sumOf { it.duration },
+                    )
+                } else {
+                    folder.copy(
+                        mediaList = emptyList(),
+                        folderList = folders,
+                        mediaCount = 0,
+                        folderCount = folders.size,
+                        cachedMediaSize = folders.sumOf { it.mediaSize },
+                        cachedMediaDuration = folders.sumOf { it.mediaDuration },
+                    )
+                }
             }
 
-            MediaViewMode.VIDEOS -> {
+            MediaViewMode.IMAGE,
+            MediaViewMode.VIDEOS,
+            -> {
                 val videos = folder.allMediaList.sortedWith(sort.videoComparator())
                 folder.copy(
                     mediaList = videos,
@@ -1334,10 +1399,10 @@ class MediaPickerViewModel @Inject constructor(
     }
 
     private fun resolveRelativePath(server: WebDavServer, href: String): String {
-        val serverPath = normalizePath(Uri.decode(server.url.toUri().path.orEmpty()))
         val itemPath = normalizePath(Uri.decode(href.toUri().path.orEmpty()))
-        return if (itemPath.startsWith(serverPath)) {
-            normalizePath(itemPath.removePrefix(serverPath))
+        val davIndex = itemPath.indexOf("/dav")
+        return if (davIndex >= 0) {
+            normalizePath(itemPath.substring(davIndex + 4).ifBlank { "/" })
         } else {
             itemPath
         }
@@ -1350,18 +1415,7 @@ class MediaPickerViewModel @Inject constructor(
         return withLeadingSlash.removeSuffix("/").ifBlank { "/" }
     }
 
-    private fun WebDavServer.fromApiPath(apiPath: String): String {
-        val normalizedApiPath = normalizePath(apiPath)
-        val storageApiBase = normalizePath(toApiPath("/"))
-        if (storageApiBase == "/" || storageApiBase.isBlank()) return normalizedApiPath
-        return when {
-            normalizedApiPath == storageApiBase -> "/"
-            normalizedApiPath.startsWith("$storageApiBase/") -> {
-                normalizePath(normalizedApiPath.removePrefix(storageApiBase))
-            }
-            else -> normalizedApiPath
-        }
-    }
+    private fun WebDavServer.fromApiPath(apiPath: String): String = normalizePath(apiPath)
 
     private fun toWebDavAbsolutePath(server: WebDavServer, relativePath: String): String {
         val normalizedBase = cloudStorageDisplayBasePath(server)
@@ -1388,6 +1442,12 @@ class MediaPickerViewModel @Inject constructor(
         val absolutePath = toWebDavAbsolutePath(server, path)
         val folderName = Uri.decode(absolutePath.substringAfterLast('/'))
         return folderName.ifBlank { server.name }
+    }
+
+    private fun cloudFolderParentDisplayPath(server: WebDavServer, path: String): String {
+        val normalizedPath = normalizePath(path)
+        val parent = normalizedPath.substringBeforeLast('/', "/").ifBlank { "/" }
+        return toWebDavAbsolutePath(server, parent)
     }
 
     private fun encodeCloudFolderPath(serverId: Int, path: String?): String = "$CLOUD_SERVER_PATH_PREFIX$serverId:$path"
@@ -1612,6 +1672,7 @@ private const val CLOUD_SERVER_PATH_PREFIX = "__cloud_server__"
 private const val CLOUD_INDEX_SEARCH_PAGE_SIZE = 10_000
 private const val CLOUD_INDEX_SEARCH_MAX_RESULTS = 50_000
 private const val CLOUD_INDEX_PARENT_LIST_PAGE_SIZE = 5_000
+private const val CLOUD_INDEX_PARENT_LIST_MAX_CONCURRENCY = 8
 private val CLOUD_INDEX_VIDEO_EXTENSIONS = setOf(
     "mp4", "mkv", "webm", "mov", "avi", "m4v", "flv", "wmv", "ts", "m2ts", "3gp", "mpg", "mpeg", "rmvb",
 )

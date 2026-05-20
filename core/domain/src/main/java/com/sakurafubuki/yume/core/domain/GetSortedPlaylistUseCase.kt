@@ -24,7 +24,7 @@ class GetSortedPlaylistUseCase @Inject constructor(
     suspend operator fun invoke(uri: Uri): List<Video> = withContext(defaultDispatcher) {
         val path = context.getPath(uri) ?: return@withContext emptyList()
         val parent = File(path).parent.takeIf {
-            preferencesRepository.applicationPreferences.first().mediaViewMode != MediaViewMode.VIDEOS
+            preferencesRepository.applicationPreferences.first().mediaViewMode !in setOf(MediaViewMode.VIDEOS, MediaViewMode.IMAGE)
         }
 
         getSortedVideosUseCase.invoke(parent).first()

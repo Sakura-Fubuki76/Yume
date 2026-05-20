@@ -85,7 +85,7 @@ fun MediaView(
             MediaLayoutMode.GRID -> spans / maxVideos
         }
 
-        val showFolders = preferences.mediaViewMode != MediaViewMode.VIDEOS
+        val showFolders = preferences.mediaViewMode !in setOf(MediaViewMode.VIDEOS, MediaViewMode.IMAGE)
         val showVideos = preferences.mediaViewMode != MediaViewMode.FOLDERS
 
         LazyVerticalGrid(

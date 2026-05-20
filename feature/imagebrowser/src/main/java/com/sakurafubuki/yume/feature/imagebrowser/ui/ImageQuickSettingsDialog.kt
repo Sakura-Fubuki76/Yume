@@ -59,7 +59,7 @@ fun ImageQuickSettingsDialog(
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 DialogSectionTitle(text = stringResource(R.string.image_view_mode))
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    val entries = listOf(MediaViewMode.FOLDERS, MediaViewMode.FOLDER_TREE)
+                    val entries = listOf(MediaViewMode.IMAGE, MediaViewMode.FOLDERS, MediaViewMode.FOLDER_TREE)
                     entries.forEachIndexed { index, mode ->
                         SegmentedButton(
                             selected = preferences.imageViewMode == mode,
@@ -174,6 +174,7 @@ private fun DialogSectionTitle(text: String) {
 
 @Composable
 private fun MediaViewMode.label(): String = when (this) {
+    MediaViewMode.IMAGE -> stringResource(R.string.images)
     MediaViewMode.VIDEOS -> stringResource(R.string.images)
     MediaViewMode.FOLDERS -> stringResource(R.string.folders)
     MediaViewMode.FOLDER_TREE -> stringResource(R.string.tree)
@@ -189,5 +190,6 @@ private fun ApplicationPreferences.normalizeForImageQuickSettings(): Application
     val normalizedSortBy = if (imageSortBy == Sort.By.LENGTH) Sort.By.TITLE else imageSortBy
     return copy(
         imageSortBy = normalizedSortBy,
+        imageViewMode = if (imageViewMode == MediaViewMode.VIDEOS) MediaViewMode.IMAGE else imageViewMode,
     )
 }

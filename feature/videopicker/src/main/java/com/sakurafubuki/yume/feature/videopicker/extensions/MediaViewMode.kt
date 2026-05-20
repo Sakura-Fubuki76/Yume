@@ -7,6 +7,7 @@ import com.sakurafubuki.yume.core.ui.R
 
 @Composable
 fun MediaViewMode.name(): String = when (this) {
+    MediaViewMode.IMAGE -> stringResource(id = R.string.images)
     MediaViewMode.VIDEOS -> stringResource(id = R.string.videos)
     MediaViewMode.FOLDERS -> stringResource(id = R.string.folders)
     MediaViewMode.FOLDER_TREE -> stringResource(id = R.string.tree)

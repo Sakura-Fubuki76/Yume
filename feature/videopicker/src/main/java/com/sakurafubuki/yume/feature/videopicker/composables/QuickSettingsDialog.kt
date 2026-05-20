@@ -70,11 +70,12 @@ fun QuickSettingsDialog(
                 SingleChoiceSegmentedButtonRow(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    MediaViewMode.entries.forEachIndexed { index, viewMode ->
+                    val entries = listOf(MediaViewMode.VIDEOS, MediaViewMode.FOLDERS, MediaViewMode.FOLDER_TREE)
+                    entries.forEachIndexed { index, viewMode ->
                         SegmentedButton(
                             selected = preferences.mediaViewMode == viewMode,
                             onClick = { preferences = preferences.copy(mediaViewMode = viewMode) },
-                            shape = SegmentedButtonDefaults.itemShape(index = index, count = MediaViewMode.entries.size),
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = entries.size),
                             colors = SegmentedButtonDefaults.colors(
                                 activeContentColor = MaterialTheme.colorScheme.primary,
                                 activeBorderColor = MaterialTheme.colorScheme.primary,

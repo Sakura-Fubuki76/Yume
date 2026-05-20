@@ -47,6 +47,10 @@ class GetSortedMediaUseCase @Inject constructor(
                 mediaList = videos,
                 folderList = emptyList(),
             )
+            MediaViewMode.IMAGE -> Folder.rootFolder.copy(
+                mediaList = videos,
+                folderList = emptyList(),
+            )
         }
     }.flowOn(defaultDispatcher)
 }

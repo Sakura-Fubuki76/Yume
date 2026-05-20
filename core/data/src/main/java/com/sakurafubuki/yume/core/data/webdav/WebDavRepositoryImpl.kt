@@ -84,6 +84,9 @@ class WebDavRepositoryImpl @Inject constructor(
 
     override fun getStreamUrl(item: WebDavMediaItem, server: WebDavServer): String {
         val resolvedUri = resolveStreamUri(item.href, server)
+        if (item.rawVideoUrl != null && resolvedUri.getQueryParameter("sign") != null) {
+            return resolvedUri.toString()
+        }
         if (server.username.isBlank()) {
             val result = resolvedUri.toString()
             return result

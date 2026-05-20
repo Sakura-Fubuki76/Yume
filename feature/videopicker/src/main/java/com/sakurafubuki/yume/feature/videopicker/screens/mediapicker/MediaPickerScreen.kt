@@ -546,7 +546,7 @@ internal fun MediaPickerScreen(
                             playlist = playlist,
                         )
                         if (orderedPlaylist.size > 1) {
-                            onPlayVideos(orderedPlaylist)
+                            onPlayVideos(trimCloudPlaylistForIntent(orderedPlaylist))
                         } else {
                             onPlayVideo(clickedUri)
                         }
@@ -784,7 +784,9 @@ private fun CloudVideoPane(
                     }
 
                     val (rootFolder, displayPrefs) = when (preferences.mediaViewMode) {
-                        MediaViewMode.VIDEOS -> {
+                        MediaViewMode.IMAGE,
+                        MediaViewMode.VIDEOS,
+                        -> {
                             val allVideos = rawFolder.allMediaList
                             rawFolder.copy(
                                 folderList = emptyList(),
@@ -896,6 +898,22 @@ private fun orderPlaylistFromClickedItem(
     }
 
     return playlist.drop(clickedIndex) + playlist.take(clickedIndex)
+}
+
+private fun trimCloudPlaylistForIntent(orderedPlaylist: List<Uri>): List<Uri> {
+    if (orderedPlaylist.size <= 1) return orderedPlaylist
+    val trimmed = mutableListOf<Uri>()
+    var estimatedParcelBytes = 0
+    for (uri in orderedPlaylist) {
+        val uriParcelBytes = uri.toString().length * 2 + CLOUD_PLAYLIST_INTENT_ITEM_OVERHEAD_BYTES
+        val wouldExceedBudget = trimmed.isNotEmpty() &&
+            estimatedParcelBytes + uriParcelBytes > CLOUD_PLAYLIST_INTENT_BYTE_BUDGET
+        val wouldExceedItemLimit = trimmed.size >= CLOUD_PLAYLIST_INTENT_ITEM_LIMIT
+        if (wouldExceedBudget || wouldExceedItemLimit) break
+        trimmed += uri
+        estimatedParcelBytes += uriParcelBytes
+    }
+    return trimmed.ifEmpty { orderedPlaylist.take(1) }
 }
 
 @Composable
@@ -1155,7 +1173,7 @@ private fun SelectionAction(
 }
 
 private fun flattenToLeafVideoFolders(folders: List<Folder>): List<Folder> = folders.flatMap { folder ->
-    if (folder.mediaList.isNotEmpty()) {
+    if (folder.mediaList.isNotEmpty() || folder.mediaCount > 0) {
         listOf(folder)
     } else if (folder.folderList.isNotEmpty()) {
         flattenToLeafVideoFolders(folder.folderList)
@@ -1165,6 +1183,9 @@ private fun flattenToLeafVideoFolders(folders: List<Folder>): List<Folder> = fol
 }
 
 private const val CLOUD_SERVER_PATH_PREFIX = "__cloud_server__"
+private const val CLOUD_PLAYLIST_INTENT_ITEM_LIMIT = 100
+private const val CLOUD_PLAYLIST_INTENT_BYTE_BUDGET = 256 * 1024
+private const val CLOUD_PLAYLIST_INTENT_ITEM_OVERHEAD_BYTES = 128
 
 @PreviewScreenSizes
 @PreviewLightDark
