@@ -32,7 +32,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Decode keystore
-        uses: timheuer/base64-to-file@v1
+        uses: timheuer/base64-to-file@v2
         id: keystore
         with:
           fileName: 'keystore.jks'
