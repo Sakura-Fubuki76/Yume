@@ -279,6 +279,7 @@
     <string name="retry">重试</string>
     <string name="edit_webdav_storage">编辑 WebDAV 存储</string>
     <string name="add_image_hosting">添加图床</string>
+    <string name="add_image_hosting_desc">添加 CloudFlare ImgBed 等图床服务</string>
     <string name="edit_image_hosting">编辑图床</string>
     <string name="image_hosting_url">网址</string>
     <string name="image_hosting_token">令牌</string>
@@ -377,9 +378,9 @@
     <string name="thumbnail_setting_change_confirmation">Changing this setting will clear the thumbnail cache. Thumbnails will be generated again when media list is opened. Continue?</string>
     <string name="material_you_controls">Material You controls</string>
     <string name="material_you_controls_description">Use material you style controls</string>
-    <string name="webdav_servers">WebDAV 服务器</string>
-    <string name="add_webdav_storage">Add WebDAV storage</string>
-    <string name="add_webdav_storage_desc">Tap to add a new WebDAV endpoint</string>
+    <string name="webdav_servers">WebDAV</string>
+    <string name="add_webdav_storage">添加 WebDAV</string>
+    <string name="add_webdav_storage_desc">添加新的 WebDAV 端点</string>
     <string name="local_network">Local Network</string>
     <string name="webdav_host">Host</string>
     <string name="webdav_scheme">Scheme</string>
@@ -438,6 +439,7 @@
     <string name="custom_value_input_button">Input custom value</string>
     <string name="custom_value_input_label">Custom value</string>
     <string name="custom_value_input_range">Range: %1$d - %2$d</string>
+    <string name="custom_value_input_range_with_step">Range: %1$d - %2$d, step %3$d</string>
     <string name="name">Name</string>
     <string name="address">Address</string>
     <string name="username">Username</string>

@@ -361,6 +361,9 @@ private fun AddImageHostingDialog(
     onConfirm: (WebDavServer) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    var name by remember(initialServer?.id) {
+        mutableStateOf(initialServer?.name.orEmpty())
+    }
     var url by remember(initialServer?.id) {
         mutableStateOf(initialServer?.url ?: "")
     }
@@ -373,13 +376,19 @@ private fun AddImageHostingDialog(
     val validUrl = parsedUrl != null &&
         !parsedUrl.host.isNullOrBlank() &&
         (parsedUrl.scheme == "http" || parsedUrl.scheme == "https")
-    val canConfirm = token.isNotBlank() && validUrl
+    val canConfirm = name.isNotBlank() && token.isNotBlank() && validUrl
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initialServer == null) stringResource(R.string.add_image_hosting) else stringResource(R.string.edit_image_hosting)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.name)) },
+                    singleLine = true,
+                )
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
@@ -399,11 +408,10 @@ private fun AddImageHostingDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val host = parsedUrl?.host ?: sanitizedUrl
                     onConfirm(
                         WebDavServer(
                             id = initialServer?.id ?: 0,
-                            name = host,
+                            name = name.trim(),
                             url = sanitizedUrl,
                             username = "Bearer $token".trim(),
                             password = "",
@@ -451,16 +459,23 @@ private fun WebDavServerList(
                     }
                 },
                 isFirstItem = index == 0,
-                isLastItem = index == servers.lastIndex,
+                isLastItem = false,
             )
         }
+        ClickablePreferenceItem(
+            title = stringResource(R.string.add_image_hosting),
+            description = stringResource(R.string.add_image_hosting_desc),
+            icon = NextIcons.Image,
+            onClick = onAddImageHosting,
+            isFirstItem = servers.isEmpty(),
+            isLastItem = false,
+        )
         ClickablePreferenceItem(
             title = stringResource(R.string.add_webdav_storage),
             description = stringResource(R.string.add_webdav_storage_desc),
             icon = NextIcons.Add,
             onClick = onAddServer,
-            onLongClick = onAddImageHosting,
-            isFirstItem = servers.isEmpty(),
+            isFirstItem = false,
             isLastItem = true,
         )
     }

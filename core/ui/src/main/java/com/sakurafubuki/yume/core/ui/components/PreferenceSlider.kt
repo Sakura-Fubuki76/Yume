@@ -1,5 +1,6 @@
 package com.sakurafubuki.yume.core.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -27,8 +28,17 @@ fun PreferenceSlider(
     steps: Int = 0,
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit = {},
+    onClick: (() -> Unit)? = null,
     trailingContent: @Composable () -> Unit = {},
 ) {
+    val labelClickModifier = if (onClick != null) {
+        Modifier.clickable(
+            enabled = enabled,
+            onClick = onClick,
+        )
+    } else {
+        Modifier
+    }
     NextSegmentedListItem(
         modifier = modifier,
         onClick = {},
@@ -48,7 +58,10 @@ fun PreferenceSlider(
         supportingContent = {
             Column {
                 description?.let {
-                    Text(text = description)
+                    Text(
+                        text = description,
+                        modifier = labelClickModifier,
+                    )
                 }
                 Slider(
                     modifier = Modifier.fillMaxWidth(),
@@ -62,7 +75,10 @@ fun PreferenceSlider(
             }
         },
         content = {
-            Text(text = title)
+            Text(
+                text = title,
+                modifier = labelClickModifier,
+            )
         },
         trailingContent = trailingContent,
     )

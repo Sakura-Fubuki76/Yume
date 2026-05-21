@@ -274,6 +274,7 @@
     <string name="retry">重试</string>
     <string name="edit_webdav_storage">编辑 WebDAV 存储</string>
     <string name="add_image_hosting">添加图床</string>
+    <string name="add_image_hosting_desc">添加 CloudFlare ImgBed 等图床服务</string>
     <string name="edit_image_hosting">编辑图床</string>
     <string name="image_hosting_url">网址</string>
     <string name="image_hosting_token">令牌</string>
@@ -414,14 +415,15 @@
     <string name="custom_value_input_button">输入自定义值</string>
     <string name="custom_value_input_label">自定义值</string>
     <string name="custom_value_input_range">范围：%1$d - %2$d</string>
+    <string name="custom_value_input_range_with_step">范围：%1$d - %2$d，步进 %3$d</string>
     <string name="name">名称</string>
     <string name="address">地址</string>
     <string name="username">用户名</string>
     <string name="password">密码</string>
     <string name="image_layout">图片布局</string>
-    <string name="webdav_servers">WebDAV 服务器</string>
-    <string name="add_webdav_storage">添加 WebDAV 存储</string>
-    <string name="add_webdav_storage_desc">点按添加新的 WebDAV 端点</string>
+    <string name="webdav_servers">WebDAV</string>
+    <string name="add_webdav_storage">添加 WebDAV</string>
+    <string name="add_webdav_storage_desc">添加新的 WebDAV 端点</string>
     <string name="local_network">本地网络</string>
     <string name="webdav_host">主机地址</string>
     <string name="webdav_scheme">协议</string>

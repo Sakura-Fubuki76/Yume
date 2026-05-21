@@ -49,6 +49,7 @@ import com.sakurafubuki.yume.core.ui.designsystem.NextIcons
 import com.sakurafubuki.yume.settings.screens.medialibrary.MediaLibraryPreferencesUiEvent
 import com.sakurafubuki.yume.settings.screens.medialibrary.MediaLibraryPreferencesUiState
 import com.sakurafubuki.yume.settings.screens.medialibrary.MediaLibraryPreferencesViewModel
+import kotlin.math.roundToInt
 
 @Composable
 fun PerformancePreferencesScreen(
@@ -114,22 +115,34 @@ private fun PerformancePreferencesContent(
                     icon = NextIcons.Speed,
                     value = uiState.imageBrowserMemoryCachePercent.toFloat(),
                     valueRange = ApplicationPreferences.MIN_IMAGE_BROWSER_MEMORY_CACHE_PERCENT.toFloat()..ApplicationPreferences.MAX_IMAGE_BROWSER_MEMORY_CACHE_PERCENT.toFloat(),
-                    steps = (ApplicationPreferences.MAX_IMAGE_BROWSER_MEMORY_CACHE_PERCENT - ApplicationPreferences.MIN_IMAGE_BROWSER_MEMORY_CACHE_PERCENT) / 5 - 1,
+                    steps = discreteSliderSteps(
+                        minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
+                        maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
+                        stepSize = MEMORY_CACHE_STEP_PERCENT,
+                    ),
                     onValueChange = {
-                        onEvent(MediaLibraryPreferencesUiEvent.UpdateImageBrowserMemoryCachePercent(it.toInt()))
+                        onEvent(
+                            MediaLibraryPreferencesUiEvent.UpdateImageBrowserMemoryCachePercent(
+                                snapSliderValue(
+                                    value = it,
+                                    minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
+                                    maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
+                                    stepSize = MEMORY_CACHE_STEP_PERCENT,
+                                ),
+                            ),
+                        )
                     },
-                    trailingContent = {
-                        SliderCustomInputButton {
-                            pendingCustomValueInput = CustomValueInputDialogState(
-                                title = imageBrowserMemoryCacheSizeTitle,
-                                initialValue = uiState.imageBrowserMemoryCachePercent,
-                                minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
-                                maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
-                                onConfirm = {
-                                    onEvent(MediaLibraryPreferencesUiEvent.UpdateImageBrowserMemoryCachePercent(it))
-                                },
-                            )
-                        }
+                    onClick = {
+                        pendingCustomValueInput = CustomValueInputDialogState(
+                            title = imageBrowserMemoryCacheSizeTitle,
+                            initialValue = uiState.imageBrowserMemoryCachePercent,
+                            minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
+                            maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
+                            stepSize = MEMORY_CACHE_STEP_PERCENT,
+                            onConfirm = {
+                                onEvent(MediaLibraryPreferencesUiEvent.UpdateImageBrowserMemoryCachePercent(it))
+                            },
+                        )
                     },
                     isFirstItem = true,
                     isLastItem = false,
@@ -146,21 +159,34 @@ private fun PerformancePreferencesContent(
                     icon = NextIcons.Update,
                     value = uiState.imageBrowserPreloadPageCount.toFloat(),
                     valueRange = ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_PAGE_COUNT.toFloat()..ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_PAGE_COUNT.toFloat(),
+                    steps = discreteSliderSteps(
+                        minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
+                        maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
+                        stepSize = PRELOAD_PAGE_STEP,
+                    ),
                     onValueChange = {
-                        onEvent(MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadPageCount(it.toInt()))
+                        onEvent(
+                            MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadPageCount(
+                                snapSliderValue(
+                                    value = it,
+                                    minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
+                                    maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
+                                    stepSize = PRELOAD_PAGE_STEP,
+                                ),
+                            ),
+                        )
                     },
-                    trailingContent = {
-                        SliderCustomInputButton {
-                            pendingCustomValueInput = CustomValueInputDialogState(
-                                title = imageBrowserPreloadPageCountTitle,
-                                initialValue = uiState.imageBrowserPreloadPageCount,
-                                minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
-                                maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
-                                onConfirm = {
-                                    onEvent(MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadPageCount(it))
-                                },
-                            )
-                        }
+                    onClick = {
+                        pendingCustomValueInput = CustomValueInputDialogState(
+                            title = imageBrowserPreloadPageCountTitle,
+                            initialValue = uiState.imageBrowserPreloadPageCount,
+                            minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
+                            maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
+                            stepSize = PRELOAD_PAGE_STEP,
+                            onConfirm = {
+                                onEvent(MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadPageCount(it))
+                            },
+                        )
                     },
                     isFirstItem = false,
                     isLastItem = true,
@@ -184,18 +210,32 @@ private fun PerformancePreferencesContent(
                     icon = NextIcons.Image,
                     value = uiState.imageCacheSizeMb.toFloat(),
                     valueRange = ApplicationPreferences.MIN_DISK_CACHE_SIZE_MB.toFloat()..ApplicationPreferences.MAX_DISK_CACHE_SLIDER_MB.toFloat(),
-                    steps = (ApplicationPreferences.MAX_DISK_CACHE_SLIDER_MB - ApplicationPreferences.MIN_DISK_CACHE_SIZE_MB) / 1024 - 1,
-                    onValueChange = { onEvent(MediaLibraryPreferencesUiEvent.UpdateImageCacheSize(it.toInt())) },
-                    trailingContent = {
-                        SliderCustomInputButton {
-                            pendingCustomValueInput = CustomValueInputDialogState(
-                                title = imageCacheSizeTitle,
-                                initialValue = uiState.imageCacheSizeMb,
-                                minValue = ApplicationPreferences.MIN_DISK_CACHE_SIZE_MB,
-                                maxValue = ApplicationPreferences.MAX_DISK_CACHE_SLIDER_MB,
-                                onConfirm = { onEvent(MediaLibraryPreferencesUiEvent.UpdateImageCacheSize(it)) },
-                            )
-                        }
+                    steps = discreteSliderSteps(
+                        minValue = ApplicationPreferences.MIN_DISK_CACHE_SIZE_MB,
+                        maxValue = ApplicationPreferences.MAX_DISK_CACHE_SLIDER_MB,
+                        stepSize = DISK_CACHE_STEP_MB,
+                    ),
+                    onValueChange = {
+                        onEvent(
+                            MediaLibraryPreferencesUiEvent.UpdateImageCacheSize(
+                                snapSliderValue(
+                                    value = it,
+                                    minValue = ApplicationPreferences.MIN_DISK_CACHE_SIZE_MB,
+                                    maxValue = ApplicationPreferences.MAX_DISK_CACHE_SLIDER_MB,
+                                    stepSize = DISK_CACHE_STEP_MB,
+                                ),
+                            ),
+                        )
+                    },
+                    onClick = {
+                        pendingCustomValueInput = CustomValueInputDialogState(
+                            title = imageCacheSizeTitle,
+                            initialValue = uiState.imageCacheSizeMb,
+                            minValue = ApplicationPreferences.MIN_DISK_CACHE_SIZE_MB,
+                            maxValue = ApplicationPreferences.MAX_DISK_CACHE_SLIDER_MB,
+                            stepSize = DISK_CACHE_STEP_MB,
+                            onConfirm = { onEvent(MediaLibraryPreferencesUiEvent.UpdateImageCacheSize(it)) },
+                        )
                     },
                     isFirstItem = false,
                     isLastItem = false,
@@ -231,17 +271,32 @@ private fun PerformancePreferencesContent(
                     icon = NextIcons.Fast,
                     value = uiState.streamingMinBufferMs.toFloat(),
                     valueRange = ApplicationPreferences.MIN_STREAMING_MIN_BUFFER_MS.toFloat()..ApplicationPreferences.MAX_STREAMING_MIN_BUFFER_MS.toFloat(),
-                    onValueChange = { onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingMinBufferMs(it.toInt())) },
-                    trailingContent = {
-                        SliderCustomInputButton {
-                            pendingCustomValueInput = CustomValueInputDialogState(
-                                title = streamingMinBufferTitle,
-                                initialValue = uiState.streamingMinBufferMs,
-                                minValue = ApplicationPreferences.MIN_STREAMING_MIN_BUFFER_MS,
-                                maxValue = ApplicationPreferences.MAX_STREAMING_MIN_BUFFER_MS,
-                                onConfirm = { onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingMinBufferMs(it)) },
-                            )
-                        }
+                    steps = discreteSliderSteps(
+                        minValue = ApplicationPreferences.MIN_STREAMING_MIN_BUFFER_MS,
+                        maxValue = ApplicationPreferences.MAX_STREAMING_MIN_BUFFER_MS,
+                        stepSize = STREAMING_LARGE_BUFFER_STEP_MS,
+                    ),
+                    onValueChange = {
+                        onEvent(
+                            MediaLibraryPreferencesUiEvent.UpdateStreamingMinBufferMs(
+                                snapSliderValue(
+                                    value = it,
+                                    minValue = ApplicationPreferences.MIN_STREAMING_MIN_BUFFER_MS,
+                                    maxValue = ApplicationPreferences.MAX_STREAMING_MIN_BUFFER_MS,
+                                    stepSize = STREAMING_LARGE_BUFFER_STEP_MS,
+                                ),
+                            ),
+                        )
+                    },
+                    onClick = {
+                        pendingCustomValueInput = CustomValueInputDialogState(
+                            title = streamingMinBufferTitle,
+                            initialValue = uiState.streamingMinBufferMs,
+                            minValue = ApplicationPreferences.MIN_STREAMING_MIN_BUFFER_MS,
+                            maxValue = ApplicationPreferences.MAX_STREAMING_MIN_BUFFER_MS,
+                            stepSize = STREAMING_LARGE_BUFFER_STEP_MS,
+                            onConfirm = { onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingMinBufferMs(it)) },
+                        )
                     },
                     isFirstItem = true,
                     isLastItem = false,
@@ -252,17 +307,32 @@ private fun PerformancePreferencesContent(
                     icon = NextIcons.GraphicEq,
                     value = uiState.streamingMaxBufferMs.toFloat(),
                     valueRange = ApplicationPreferences.MIN_STREAMING_MAX_BUFFER_MS.toFloat()..ApplicationPreferences.MAX_STREAMING_MAX_BUFFER_MS.toFloat(),
-                    onValueChange = { onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingMaxBufferMs(it.toInt())) },
-                    trailingContent = {
-                        SliderCustomInputButton {
-                            pendingCustomValueInput = CustomValueInputDialogState(
-                                title = streamingMaxBufferTitle,
-                                initialValue = uiState.streamingMaxBufferMs,
-                                minValue = ApplicationPreferences.MIN_STREAMING_MAX_BUFFER_MS,
-                                maxValue = ApplicationPreferences.MAX_STREAMING_MAX_BUFFER_MS,
-                                onConfirm = { onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingMaxBufferMs(it)) },
-                            )
-                        }
+                    steps = discreteSliderSteps(
+                        minValue = ApplicationPreferences.MIN_STREAMING_MAX_BUFFER_MS,
+                        maxValue = ApplicationPreferences.MAX_STREAMING_MAX_BUFFER_MS,
+                        stepSize = STREAMING_LARGE_BUFFER_STEP_MS,
+                    ),
+                    onValueChange = {
+                        onEvent(
+                            MediaLibraryPreferencesUiEvent.UpdateStreamingMaxBufferMs(
+                                snapSliderValue(
+                                    value = it,
+                                    minValue = ApplicationPreferences.MIN_STREAMING_MAX_BUFFER_MS,
+                                    maxValue = ApplicationPreferences.MAX_STREAMING_MAX_BUFFER_MS,
+                                    stepSize = STREAMING_LARGE_BUFFER_STEP_MS,
+                                ),
+                            ),
+                        )
+                    },
+                    onClick = {
+                        pendingCustomValueInput = CustomValueInputDialogState(
+                            title = streamingMaxBufferTitle,
+                            initialValue = uiState.streamingMaxBufferMs,
+                            minValue = ApplicationPreferences.MIN_STREAMING_MAX_BUFFER_MS,
+                            maxValue = ApplicationPreferences.MAX_STREAMING_MAX_BUFFER_MS,
+                            stepSize = STREAMING_LARGE_BUFFER_STEP_MS,
+                            onConfirm = { onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingMaxBufferMs(it)) },
+                        )
                     },
                     isFirstItem = false,
                     isLastItem = false,
@@ -273,19 +343,34 @@ private fun PerformancePreferencesContent(
                     icon = NextIcons.Play,
                     value = uiState.streamingBufferForPlaybackMs.toFloat(),
                     valueRange = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_MS.toFloat()..ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_MS.toFloat(),
-                    onValueChange = { onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingBufferForPlaybackMs(it.toInt())) },
-                    trailingContent = {
-                        SliderCustomInputButton {
-                            pendingCustomValueInput = CustomValueInputDialogState(
-                                title = streamingBufferForPlaybackTitle,
-                                initialValue = uiState.streamingBufferForPlaybackMs,
-                                minValue = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_MS,
-                                maxValue = ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_MS,
-                                onConfirm = {
-                                    onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingBufferForPlaybackMs(it))
-                                },
-                            )
-                        }
+                    steps = discreteSliderSteps(
+                        minValue = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_MS,
+                        maxValue = ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_MS,
+                        stepSize = STREAMING_SMALL_BUFFER_STEP_MS,
+                    ),
+                    onValueChange = {
+                        onEvent(
+                            MediaLibraryPreferencesUiEvent.UpdateStreamingBufferForPlaybackMs(
+                                snapSliderValue(
+                                    value = it,
+                                    minValue = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_MS,
+                                    maxValue = ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_MS,
+                                    stepSize = STREAMING_SMALL_BUFFER_STEP_MS,
+                                ),
+                            ),
+                        )
+                    },
+                    onClick = {
+                        pendingCustomValueInput = CustomValueInputDialogState(
+                            title = streamingBufferForPlaybackTitle,
+                            initialValue = uiState.streamingBufferForPlaybackMs,
+                            minValue = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_MS,
+                            maxValue = ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_MS,
+                            stepSize = STREAMING_SMALL_BUFFER_STEP_MS,
+                            onConfirm = {
+                                onEvent(MediaLibraryPreferencesUiEvent.UpdateStreamingBufferForPlaybackMs(it))
+                            },
+                        )
                     },
                     isFirstItem = false,
                     isLastItem = false,
@@ -296,27 +381,36 @@ private fun PerformancePreferencesContent(
                     icon = NextIcons.Resume,
                     value = uiState.streamingBufferForPlaybackAfterRebufferMs.toFloat(),
                     valueRange = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS.toFloat()..ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS.toFloat(),
+                    steps = discreteSliderSteps(
+                        minValue = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+                        maxValue = ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+                        stepSize = STREAMING_SMALL_BUFFER_STEP_MS,
+                    ),
                     onValueChange = {
                         onEvent(
                             MediaLibraryPreferencesUiEvent.UpdateStreamingBufferForPlaybackAfterRebufferMs(
-                                it.toInt(),
+                                snapSliderValue(
+                                    value = it,
+                                    minValue = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+                                    maxValue = ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+                                    stepSize = STREAMING_SMALL_BUFFER_STEP_MS,
+                                ),
                             ),
                         )
                     },
-                    trailingContent = {
-                        SliderCustomInputButton {
-                            pendingCustomValueInput = CustomValueInputDialogState(
-                                title = streamingBufferAfterRebufferTitle,
-                                initialValue = uiState.streamingBufferForPlaybackAfterRebufferMs,
-                                minValue = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
-                                maxValue = ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
-                                onConfirm = {
-                                    onEvent(
-                                        MediaLibraryPreferencesUiEvent.UpdateStreamingBufferForPlaybackAfterRebufferMs(it),
-                                    )
-                                },
-                            )
-                        }
+                    onClick = {
+                        pendingCustomValueInput = CustomValueInputDialogState(
+                            title = streamingBufferAfterRebufferTitle,
+                            initialValue = uiState.streamingBufferForPlaybackAfterRebufferMs,
+                            minValue = ApplicationPreferences.MIN_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+                            maxValue = ApplicationPreferences.MAX_STREAMING_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+                            stepSize = STREAMING_SMALL_BUFFER_STEP_MS,
+                            onConfirm = {
+                                onEvent(
+                                    MediaLibraryPreferencesUiEvent.UpdateStreamingBufferForPlaybackAfterRebufferMs(it),
+                                )
+                            },
+                        )
                     },
                     isFirstItem = false,
                     isLastItem = true,
@@ -400,18 +494,6 @@ private fun ImageBrowserThumbnailSizePicker(
 }
 
 @Composable
-private fun SliderCustomInputButton(
-    onClick: () -> Unit,
-) {
-    FilledTonalIconButton(onClick = onClick) {
-        Icon(
-            imageVector = NextIcons.Edit,
-            contentDescription = stringResource(R.string.custom_value_input_button),
-        )
-    }
-}
-
-@Composable
 private fun CustomValueInputDialog(
     state: CustomValueInputDialogState,
     onDismiss: () -> Unit,
@@ -421,7 +503,8 @@ private fun CustomValueInputDialog(
     val focusRequester = remember { FocusRequester() }
     var valueText by remember(state) { mutableStateOf(state.initialValue.toString()) }
     val parsed = valueText.toIntOrNull()
-    val isValid = parsed != null && parsed in state.minValue..state.maxValue
+    val isStepAligned = parsed != null && (parsed - state.minValue) % state.stepSize == 0
+    val isValid = parsed != null && parsed in state.minValue..state.maxValue && isStepAligned
 
     LaunchedEffect(state) {
         focusRequester.requestFocus()
@@ -458,11 +541,20 @@ private fun CustomValueInputDialog(
                     label = { Text(text = stringResource(R.string.custom_value_input_label)) },
                     supportingText = {
                         Text(
-                            text = stringResource(
-                                R.string.custom_value_input_range,
-                                state.minValue,
-                                state.maxValue,
-                            ),
+                            text = if (state.stepSize > 1) {
+                                stringResource(
+                                    R.string.custom_value_input_range_with_step,
+                                    state.minValue,
+                                    state.maxValue,
+                                    state.stepSize,
+                                )
+                            } else {
+                                stringResource(
+                                    R.string.custom_value_input_range,
+                                    state.minValue,
+                                    state.maxValue,
+                                )
+                            },
                         )
                     },
                     isError = valueText.isNotEmpty() && !isValid,
@@ -540,5 +632,21 @@ private data class CustomValueInputDialogState(
     val initialValue: Int,
     val minValue: Int,
     val maxValue: Int,
+    val stepSize: Int,
     val onConfirm: (Int) -> Unit,
 )
+
+private const val MEMORY_CACHE_STEP_PERCENT = 5
+private const val PRELOAD_PAGE_STEP = 1
+private const val DISK_CACHE_STEP_MB = 1024
+private const val STREAMING_LARGE_BUFFER_STEP_MS = 5_000
+private const val STREAMING_SMALL_BUFFER_STEP_MS = 500
+
+private fun discreteSliderSteps(minValue: Int, maxValue: Int, stepSize: Int): Int = ((maxValue - minValue) / stepSize - 1).coerceAtLeast(0)
+
+private fun snapSliderValue(value: Float, minValue: Int, maxValue: Int, stepSize: Int): Int {
+    val clamped = value.roundToInt().coerceIn(minValue, maxValue)
+    val offset = clamped - minValue
+    val snappedOffset = (offset.toFloat() / stepSize).roundToInt() * stepSize
+    return (minValue + snappedOffset).coerceIn(minValue, maxValue)
+}
