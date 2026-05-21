@@ -176,7 +176,9 @@ fun ControlsBottomView(
 
             PlayerSeekbar(
                 position = mediaPresentationState.position.toFloat(),
+                bufferedPosition = mediaPresentationState.bufferedPosition.toFloat(),
                 duration = mediaPresentationState.duration.toFloat(),
+                showBufferedProgress = player.currentMediaItem?.mediaId?.isHttpUrl() == true,
                 chapters = chapters,
                 onSeek = { onSeek(it.toLong()) },
                 onSeekFinished = { onSeekEnd() },
@@ -242,7 +244,9 @@ fun ControlsBottomView(
 private fun PlayerSeekbar(
     modifier: Modifier = Modifier,
     position: Float,
+    bufferedPosition: Float,
     duration: Float,
+    showBufferedProgress: Boolean,
     chapters: List<ChapterEntry> = emptyList(),
     onSeek: (Float) -> Unit,
     onSeekFinished: () -> Unit,
@@ -252,7 +256,9 @@ private fun PlayerSeekbar(
             MaterialYouSlider(
                 modifier = modifier.fillMaxWidth(),
                 value = position,
+                bufferedValue = bufferedPosition,
                 valueRange = 0f..duration,
+                showBufferedProgress = showBufferedProgress,
                 chapters = chapters,
                 onValueChange = onSeek,
                 onValueChangeFinished = onSeekFinished,
@@ -261,7 +267,9 @@ private fun PlayerSeekbar(
             SimpleSlider(
                 modifier = modifier.fillMaxWidth(),
                 value = position,
+                bufferedValue = bufferedPosition,
                 valueRange = 0f..duration,
+                showBufferedProgress = showBufferedProgress,
                 chapters = chapters,
                 onValueChange = onSeek,
                 onValueChangeFinished = onSeekFinished,
@@ -275,12 +283,15 @@ private fun PlayerSeekbar(
 private fun MaterialYouSlider(
     modifier: Modifier = Modifier,
     value: Float,
+    bufferedValue: Float,
     valueRange: ClosedFloatingPointRange<Float>,
+    showBufferedProgress: Boolean,
     chapters: List<ChapterEntry> = emptyList(),
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
+    val bufferedColor = MaterialTheme.colorScheme.primaryContainer
     val interactionSource = remember { MutableInteractionSource() }
     val trackHeight = 8.dp
     val thumbWidth = 4.dp
@@ -305,13 +316,16 @@ private fun MaterialYouSlider(
                 val max = sliderState.valueRange.endInclusive
                 val range = (max - min).takeIf { it > 0f } ?: 1f
                 val playedFraction = ((sliderState.value - min) / range).coerceIn(0f, 1f)
+                val bufferedFraction = ((bufferedValue - min) / range).coerceIn(playedFraction, 1f)
                 val playedPixels = size.width * playedFraction
+                val bufferedPixels = size.width * bufferedFraction
 
                 val endCornerRadius = size.height / 2f
                 val insideCornerRadius = 2.dp.toPx()
                 val gapHalf = trackThumbGapWidth.toPx() / 2f
                 val leftEnd = (playedPixels - gapHalf).coerceIn(0f, size.width)
                 val rightStart = (playedPixels + gapHalf).coerceIn(0f, size.width)
+                val bufferedEnd = (bufferedPixels - gapHalf).coerceIn(0f, size.width)
 
                 if (leftEnd > 0f) {
                     drawRoundedRect(
@@ -330,6 +344,16 @@ private fun MaterialYouSlider(
                         color = primaryColor.copy(alpha = disabledAlpha),
                         startCornerRadius = insideCornerRadius,
                         endCornerRadius = endCornerRadius,
+                    )
+                }
+
+                if (showBufferedProgress && bufferedEnd > leftEnd) {
+                    drawRoundedRect(
+                        offset = Offset(leftEnd, 0f),
+                        size = Size(bufferedEnd - leftEnd, size.height),
+                        color = bufferedColor.copy(alpha = 0.7f),
+                        startCornerRadius = insideCornerRadius,
+                        endCornerRadius = if (bufferedEnd >= size.width) endCornerRadius else insideCornerRadius,
                     )
                 }
 
@@ -404,11 +428,16 @@ private fun DrawScope.drawRoundedRect(
 private fun SimpleSlider(
     modifier: Modifier = Modifier,
     value: Float,
+    bufferedValue: Float,
     valueRange: ClosedFloatingPointRange<Float>,
+    showBufferedProgress: Boolean,
     chapters: List<ChapterEntry> = emptyList(),
     onValueChange: (Float) -> Unit,
     onValueChangeFinished: () -> Unit,
 ) {
+    val rangeEnd = valueRange.endInclusive.takeIf { it > 0f } ?: 1f
+    val playedFraction = (value / rangeEnd).coerceIn(0f, 1f)
+    val bufferedFraction = (bufferedValue / rangeEnd).coerceIn(playedFraction, 1f)
     Slider(
         value = value,
         valueRange = valueRange,
@@ -456,10 +485,18 @@ private fun SimpleSlider(
                         },
                     ),
             ) {
+                if (showBufferedProgress) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(bufferedFraction)
+                            .height(4.dp)
+                            .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f)),
+                    )
+                }
                 if (valueRange.endInclusive > 0f) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(value / valueRange.endInclusive)
+                            .fillMaxWidth(playedFraction)
                             .height(4.dp)
                             .background(MaterialTheme.colorScheme.primary),
                     )
@@ -468,3 +505,5 @@ private fun SimpleSlider(
         },
     )
 }
+
+private fun String.isHttpUrl(): Boolean = startsWith("http://", ignoreCase = true) || startsWith("https://", ignoreCase = true)
