@@ -1,5 +1,6 @@
 package com.sakurafubuki.yume.feature.imagebrowser.ui
 
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
@@ -126,7 +127,12 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private val LocalGridLockState = compositionLocalOf { mutableStateOf(false) }
 
@@ -135,6 +141,7 @@ object ImageViewerStore {
     var previewQuality: ImageQuality = DEFAULT_IMAGE_QUALITY
     var imageBrowserMemoryCachePercent: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_MEMORY_CACHE_PERCENT
     var imageBrowserThumbnailSizePx: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_THUMBNAIL_SIZE_PX
+    var imageBrowserPreloadPageCount: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_PRELOAD_PAGE_COUNT
     var imageCloudDiskCacheEnabled: Boolean = true
     var launchUri: String? = null
     var launchOriginBounds: Rect? = null
@@ -170,6 +177,9 @@ private const val TAG = "ImageViewer"
 private const val SHARED_ELEMENT_BOUNDS_TIMEOUT_MS = 220L
 private const val IMAGE_VIEWER_ARC_MIN_PX = 56f
 private const val IMAGE_VIEWER_ARC_MAX_PX = 220f
+private const val IMAGE_VIEWER_MEMORY_PRELOAD_RADIUS = 1
+private const val IMAGE_VIEWER_DISK_PRELOAD_RADIUS_MAX = 2
+private const val IMAGE_VIEWER_PRELOAD_CONCURRENCY = 2
 private const val CLOUD_SERVER_PATH_PREFIX = "__cloud_server__"
 private val DEFAULT_IMAGE_QUALITY = ImageQuality.HIGH
 private val VIEWER_IMAGE_QUALITY = ImageQuality.ORIGINAL
@@ -324,6 +334,7 @@ private fun ImageBrowserScreen(
         ImageViewerStore.previewQuality = uiState.preferences.imageQuality
         ImageViewerStore.imageBrowserMemoryCachePercent = uiState.preferences.imageBrowserMemoryCachePercent
         ImageViewerStore.imageBrowserThumbnailSizePx = uiState.preferences.imageBrowserThumbnailSizePx
+        ImageViewerStore.imageBrowserPreloadPageCount = uiState.preferences.imageBrowserPreloadPageCount
         ImageViewerStore.imageCloudDiskCacheEnabled = uiState.preferences.imageCloudDiskCacheEnabled
     }
 
@@ -336,7 +347,11 @@ private fun ImageBrowserScreen(
                     } else {
                         currentFolder?.name ?: stringResource(R.string.app_name)
                     }
-                    MediaMode.CLOUD -> currentFolder?.name ?: selectedCloudServer?.name ?: stringResource(R.string.app_name)
+                    MediaMode.CLOUD -> if (normalizePath(uiState.cloudPath) == "/") {
+                        stringResource(R.string.app_name)
+                    } else {
+                        currentFolder?.name ?: selectedCloudServer?.name ?: stringResource(R.string.app_name)
+                    }
                 },
                 navigationIcon = {
                     when {
@@ -483,6 +498,7 @@ private fun ImageBrowserScreen(
                     galleryState = uiState.cloudGalleryState,
                     refreshing = uiState.cloudRefreshing,
                     isCloudMode = true,
+                    cloudLoadingPhase = uiState.cloudLoadingPhase,
                     currentPath = uiState.cloudPath,
                     showCloudEmptyState = true,
                     preferences = uiState.preferences,
@@ -570,6 +586,7 @@ private fun FolderPane(
     galleryState: ImageGalleryUiState,
     refreshing: Boolean,
     isCloudMode: Boolean,
+    cloudLoadingPhase: ImageCloudLoadingPhase = ImageCloudLoadingPhase.READING_SNAPSHOT,
     currentPath: String,
     showCloudEmptyState: Boolean,
     preferences: ApplicationPreferences,
@@ -595,6 +612,7 @@ private fun FolderPane(
             PaneContent(
                 galleryState = galleryState,
                 refreshing = refreshing,
+                cloudLoadingPhase = cloudLoadingPhase,
                 isCloudMode = isCloudMode,
                 preferences = preferences,
                 imageQuality = imageQuality,
@@ -638,6 +656,7 @@ private fun FolderPane(
     PaneContent(
         galleryState = galleryState,
         refreshing = refreshing,
+        cloudLoadingPhase = cloudLoadingPhase,
         isCloudMode = isCloudMode,
         preferences = preferences,
         imageQuality = imageQuality,
@@ -707,6 +726,7 @@ private fun CloudServerSelectorDialog(
 private fun PaneContent(
     galleryState: ImageGalleryUiState,
     refreshing: Boolean,
+    cloudLoadingPhase: ImageCloudLoadingPhase,
     isCloudMode: Boolean,
     preferences: ApplicationPreferences,
     imageQuality: ImageQuality,
@@ -733,6 +753,7 @@ private fun PaneContent(
         when (galleryState) {
             ImageGalleryUiState.Loading -> LoadingGalleryState(
                 isRefreshing = refreshing,
+                cloudLoadingPhase = cloudLoadingPhase,
                 onRefresh = onRefresh,
             )
 
@@ -1293,6 +1314,7 @@ private fun ImageThumbnailSkeleton(isError: Boolean = false) {
 @Composable
 private fun LoadingGalleryState(
     isRefreshing: Boolean,
+    cloudLoadingPhase: ImageCloudLoadingPhase,
     onRefresh: () -> Unit,
 ) {
     Column(
@@ -1307,9 +1329,24 @@ private fun LoadingGalleryState(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
-                Text(text = stringResource(if (isRefreshing) R.string.refreshing_gallery else R.string.loading_gallery))
+                val titleRes = if (isRefreshing) {
+                    R.string.refreshing_gallery
+                } else {
+                    when (cloudLoadingPhase) {
+                        ImageCloudLoadingPhase.READING_SNAPSHOT -> R.string.loading_gallery_snapshot
+                        ImageCloudLoadingPhase.REFRESHING_REMOTE -> R.string.loading_gallery_cloud
+                        ImageCloudLoadingPhase.PREPARING_COVERS -> R.string.loading_gallery_covers
+                    }
+                }
+                Text(text = stringResource(titleRes))
                 Text(
-                    text = stringResource(R.string.preparing_thumbnails),
+                    text = stringResource(
+                        when (cloudLoadingPhase) {
+                            ImageCloudLoadingPhase.READING_SNAPSHOT -> R.string.preparing_local_snapshot
+                            ImageCloudLoadingPhase.REFRESHING_REMOTE -> R.string.preparing_thumbnails
+                            ImageCloudLoadingPhase.PREPARING_COVERS -> R.string.preparing_folder_covers
+                        },
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1398,6 +1435,100 @@ private fun decodeCloudFolderPath(path: String): Pair<Int, String>? {
 
 private fun imageGridItemIndex(rootFolder: Folder, mediaIndex: Int): Int = rootFolder.folderList.size + mediaIndex
 
+private suspend fun preloadAdjacentViewerImages(
+    context: Context,
+    localImageLoader: ImageLoader,
+    images: List<Video>,
+    currentPage: Int,
+) {
+    val configuredPreload = ImageViewerStore.imageBrowserPreloadPageCount.coerceIn(
+        ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
+        ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
+    )
+    if (configuredPreload <= 0 || images.size <= 1) return
+    val radius = if (ImageViewerStore.imageCloudDiskCacheEnabled) {
+        min(configuredPreload, IMAGE_VIEWER_DISK_PRELOAD_RADIUS_MAX)
+    } else {
+        min(configuredPreload, IMAGE_VIEWER_MEMORY_PRELOAD_RADIUS)
+    }
+    if (radius <= 0) return
+
+    val targets = viewerPreloadPageIndices(
+        currentPage = currentPage,
+        pageCount = images.size,
+        radius = radius,
+    ).mapNotNull { page -> images.getOrNull(page) }
+    if (targets.isEmpty()) return
+
+    withContext(Dispatchers.IO) {
+        targets.chunked(IMAGE_VIEWER_PRELOAD_CONCURRENCY).forEach { batch ->
+            coroutineScope {
+                batch.map { image ->
+                    async {
+                        preloadViewerImage(
+                            context = context,
+                            localImageLoader = localImageLoader,
+                            image = image,
+                        )
+                    }
+                }.awaitAll()
+            }
+        }
+    }
+}
+
+private fun viewerPreloadPageIndices(
+    currentPage: Int,
+    pageCount: Int,
+    radius: Int,
+): List<Int> = (1..radius)
+    .flatMap { offset -> listOf(currentPage + offset, currentPage - offset) }
+    .filter { page -> page in 0 until pageCount }
+    .distinct()
+
+private suspend fun preloadViewerImage(
+    context: Context,
+    localImageLoader: ImageLoader,
+    image: Video,
+) {
+    val uri = image.uriString.takeIf { it.isNotBlank() } ?: return
+    val displayUri = image.displayUriString()
+    val loader = resolveImageLoader(context, uri, localImageLoader)
+    try {
+        loader.execute(
+            buildImageRequest(
+                context = context,
+                data = displayUri,
+                quality = ImageViewerStore.previewQuality,
+                profile = ImageRequestProfile.THUMBNAIL,
+                thumbnailMaxEdgePx = ImageViewerStore.imageBrowserThumbnailSizePx,
+            ),
+        )
+        loader.execute(
+            buildImageRequest(
+                context = context,
+                data = uri,
+                quality = VIEWER_IMAGE_QUALITY,
+                profile = ImageRequestProfile.VIEWER,
+                thumbnailMaxEdgePx = ImageViewerStore.imageBrowserThumbnailSizePx,
+            )
+                .newBuilder()
+                .placeholderMemoryCacheKey(
+                    thumbnailMemoryCacheKey(
+                        displayUri,
+                        ImageViewerStore.previewQuality,
+                        ImageViewerStore.imageBrowserThumbnailSizePx,
+                    ),
+                )
+                .build(),
+        )
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Throwable) {
+        Logger.d(TAG, "preloadViewerImage: failed for $uri", error)
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ImageViewerRoute(
@@ -1406,6 +1537,7 @@ fun ImageViewerRoute(
 ) {
     val transitionEngine = LocalTransitionEngine.current
     val sharedElementRegistry = LocalSharedElementRegistry.current
+    val context = LocalContext.current
     val viewModel = hiltViewModel<ImageBrowserViewModel>()
     var hasConsumedBackNavigation by remember { mutableStateOf(false) }
 
@@ -1626,6 +1758,21 @@ fun ImageViewerRoute(
         resetTransition()
         ImageViewerStore.launchUri = null
         ImageViewerStore.launchOriginBounds = null
+    }
+
+    LaunchedEffect(
+        pagerState.currentPage,
+        images,
+        ImageViewerStore.imageCloudDiskCacheEnabled,
+        ImageViewerStore.imageBrowserPreloadPageCount,
+        ImageViewerStore.imageBrowserThumbnailSizePx,
+    ) {
+        preloadAdjacentViewerImages(
+            context = context,
+            localImageLoader = localImageLoader,
+            images = images,
+            currentPage = pagerState.currentPage,
+        )
     }
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

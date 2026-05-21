@@ -143,7 +143,9 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
                     diskCacheSizeMb = normalizedSizeMb,
                 )
             }
-            ImageCacheManager.rebuildGlobalImageLoader(normalizedSizeMb)
+            withContext(ioDispatcher) {
+                ImageCacheManager.rebuildGlobalImageLoader(normalizedSizeMb)
+            }
             requestCacheUsageRefresh()
         }
     }
@@ -154,7 +156,9 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
                 it.copy(imageCloudDiskCacheEnabled = !it.imageCloudDiskCacheEnabled)
             }
             val diskCacheSize = preferencesRepository.applicationPreferences.value.diskCacheSizeMb
-            ImageCacheManager.rebuildGlobalImageLoader(diskCacheSize)
+            withContext(ioDispatcher) {
+                ImageCacheManager.rebuildGlobalImageLoader(diskCacheSize)
+            }
             requestCacheUsageRefresh()
         }
     }
@@ -243,7 +247,9 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
                 it.copy(imageBrowserMemoryCachePercent = normalized)
             }
             val diskCacheSize = preferencesRepository.applicationPreferences.value.diskCacheSizeMb
-            ImageCacheManager.rebuildGlobalImageLoader(diskCacheSize)
+            withContext(ioDispatcher) {
+                ImageCacheManager.rebuildGlobalImageLoader(diskCacheSize)
+            }
         }
     }
 

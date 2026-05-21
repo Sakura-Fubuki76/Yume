@@ -289,7 +289,12 @@
     <string name="refresh">刷新</string>
     <string name="refreshing_gallery">正在刷新图片库</string>
     <string name="loading_gallery">正在加载图片库</string>
+    <string name="loading_gallery_snapshot">正在读取本地快照</string>
+    <string name="loading_gallery_cloud">正在刷新云端列表</string>
+    <string name="loading_gallery_covers">正在准备文件夹封面</string>
     <string name="preparing_thumbnails">正在准备缩略图…</string>
+    <string name="preparing_local_snapshot">正在恢复上次浏览内容…</string>
+    <string name="preparing_folder_covers">正在保存本地封面…</string>
     <string name="seconds_short">秒</string>
     <string name="times_short">倍</string>
     <string name="skip_to_previous">上一个</string>

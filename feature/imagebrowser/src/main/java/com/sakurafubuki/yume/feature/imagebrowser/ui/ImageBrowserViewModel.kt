@@ -2,6 +2,7 @@ package com.sakurafubuki.yume.feature.imagebrowser.ui
 
 import android.content.ContentUris
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.net.toUri
@@ -43,6 +44,8 @@ import com.sakurafubuki.yume.core.model.WebDavServer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
@@ -441,6 +444,7 @@ class ImageBrowserViewModel @Inject constructor(
                     refreshing -> it.cloudGalleryState
                     else -> ImageGalleryUiState.Loading
                 },
+                cloudLoadingPhase = if (refreshing) ImageCloudLoadingPhase.REFRESHING_REMOTE else ImageCloudLoadingPhase.READING_SNAPSHOT,
                 cloudPage = 1,
                 cloudHasMore = true,
                 cloudTotalItems = 0,
@@ -901,6 +905,7 @@ class ImageBrowserViewModel @Inject constructor(
                 cloudHasMore = false,
                 cloudTotalItems = images.size,
                 cloudLoadingMore = false,
+                cloudLoadingPhase = ImageCloudLoadingPhase.REFRESHING_REMOTE,
                 cloudError = null,
             )
         }
@@ -1208,25 +1213,39 @@ class ImageBrowserViewModel @Inject constructor(
         if (folder.folderList.isEmpty()) return
 
         val sort = imageSort(preferences)
+        val refreshTargets = if (server.isImageHosting) {
+            folder.folderList.take(IMAGE_HOSTING_FOLDER_COVER_PREFETCH_LIMIT)
+        } else {
+            folder.folderList
+        }
+        val semaphore = Semaphore(
+            if (server.isImageHosting) {
+                IMAGE_HOSTING_FOLDER_COVER_PREFETCH_CONCURRENCY
+            } else {
+                DEFAULT_CLOUD_DIMENSION_PROBE_CONCURRENCY
+            },
+        )
         val refreshedByPath = coroutineScope {
-            folder.folderList.map { child ->
+            refreshTargets.map { child ->
                 async(Dispatchers.IO) {
-                    val childPath = decodeCloudFolderPath(child.path)?.second ?: normalizePath(child.path)
-                    if (effectiveImageViewMode(preferences.imageViewMode) == MediaViewMode.FOLDER_TREE) {
-                        val enriched = enrichCloudTreeFolderItem(server, child.copy(path = childPath), sort)
-                        return@async child.path to enriched.copy(path = child.path)
+                    semaphore.withPermit {
+                        val childPath = decodeCloudFolderPath(child.path)?.second ?: normalizePath(child.path)
+                        if (effectiveImageViewMode(preferences.imageViewMode) == MediaViewMode.FOLDER_TREE) {
+                            val enriched = enrichCloudTreeFolderItem(server, child.copy(path = childPath), sort)
+                            return@withPermit child.path to enriched.copy(path = child.path)
+                        }
+                        val items = loadCloudPreviewItems(server, childPath)
+                            ?: return@withPermit child.path to child
+                        val images = items.filter { it.isImage }
+                            .map { item -> mapCloudImageItemToVideo(server, childPath, item) }
+                            .sortedWith(sort.videoComparator())
+                        val directFolderCount = items.count { it.isDirectory }
+                        child.path to child.copy(
+                            coverMedia = images.firstOrNull() ?: child.coverMedia,
+                            mediaCount = if (images.isNotEmpty()) images.size else child.mediaCount,
+                            folderCount = maxOf(child.folderCount, directFolderCount),
+                        )
                     }
-                    val items = loadCloudPreviewItems(server, childPath)
-                        ?: return@async child.path to child
-                    val images = items.filter { it.isImage }
-                        .map { item -> mapCloudImageItemToVideo(server, childPath, item) }
-                        .sortedWith(sort.videoComparator())
-                    val directFolderCount = items.count { it.isDirectory }
-                    child.path to child.copy(
-                        coverMedia = images.firstOrNull() ?: child.coverMedia,
-                        mediaCount = if (images.isNotEmpty()) images.size else child.mediaCount,
-                        folderCount = maxOf(child.folderCount, directFolderCount),
-                    )
                 }
             }.awaitAll().toMap()
         }
@@ -1837,6 +1856,16 @@ class ImageBrowserViewModel @Inject constructor(
             ?: resolveDimensionsFromCache(server.id, dimensionUrl)
         val resolvedWidth = item.width?.takeIf { it > 0 } ?: cached?.first ?: 0
         val resolvedHeight = item.height?.takeIf { it > 0 } ?: cached?.second ?: 0
+        val apiWidth = item.width ?: 0
+        val apiHeight = item.height ?: 0
+        if (apiWidth > 0 && apiHeight > 0) {
+            imageDimensionCache.put(server.id, imageUrl, apiWidth, apiHeight)
+            imageDimensionCache.put(server.id, stableUrlForDimensionCache(imageUrl), apiWidth, apiHeight)
+            if (dimensionUrl != imageUrl) {
+                imageDimensionCache.put(server.id, dimensionUrl, apiWidth, apiHeight)
+                imageDimensionCache.put(server.id, stableUrlForDimensionCache(dimensionUrl), apiWidth, apiHeight)
+            }
+        }
         return Video(
             id = imageUrl.hashCode().toLong(),
             path = decodedPath.ifBlank { path },
@@ -1887,7 +1916,7 @@ class ImageBrowserViewModel @Inject constructor(
 
         if (coverUriToSave != null &&
             isRemoteImageData(coverUriToSave) &&
-            (coverUriToSave != existing?.coverImageUri || !localFolderCoverFile(coverUriToSave).exists())
+            (coverUriToSave != existing?.coverImageUri || findLocalFolderCoverFile(coverUriToSave) == null)
         ) {
             persistFolderCoverLocally(coverUriToSave)
         }
@@ -1950,7 +1979,7 @@ class ImageBrowserViewModel @Inject constructor(
             }
             if (coverUriToSave != null &&
                 isRemoteImageData(coverUriToSave) &&
-                (coverUriToSave != existingDbUri || !localFolderCoverFile(coverUriToSave).exists())
+                (coverUriToSave != existingDbUri || findLocalFolderCoverFile(coverUriToSave) == null)
             ) {
                 persistFolderCoverLocally(coverUriToSave)
             }
@@ -1992,8 +2021,14 @@ class ImageBrowserViewModel @Inject constructor(
     private suspend fun persistFolderCoverLocally(coverImageUri: String): String? = withContext(Dispatchers.IO) {
         try {
             val coverCacheKey = folderCoverCacheKey(coverImageUri)
-            val outputFile = localFolderCoverFile(coverImageUri)
-            if (outputFile.exists()) return@withContext Uri.fromFile(outputFile).toString()
+            val existingFile = findLocalFolderCoverFile(coverImageUri)
+            if (existingFile != null) return@withContext Uri.fromFile(existingFile).toString()
+            persistRemoteFolderCoverBytes(coverImageUri)?.let { savedFile ->
+                readImageBounds(savedFile)?.let { (width, height) ->
+                    reportCloudImageDimensions(coverImageUri, width, height)
+                }
+                return@withContext Uri.fromFile(savedFile).toString()
+            }
             val imageLoader = SingletonImageLoader.get(context)
             val uri = coverImageUri.toUri()
             val request = ImageRequest.Builder(context)
@@ -2006,8 +2041,9 @@ class ImageBrowserViewModel @Inject constructor(
                 .build()
             val result = imageLoader.execute(request) as? SuccessResult ?: return@withContext null
             val bitmap = result.image.toBitmap()
+            val outputFile = localFolderCoverFile(coverImageUri, FOLDER_COVER_FALLBACK_EXTENSION)
             outputFile.outputStream().use { output ->
-                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 95, output)
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.WEBP_LOSSLESS, 100, output)
             }
             reportCloudImageDimensions(coverImageUri, bitmap.width, bitmap.height)
             Uri.fromFile(outputFile).toString()
@@ -2019,9 +2055,80 @@ class ImageBrowserViewModel @Inject constructor(
 
     private fun folderCoverCacheDir(): File = File(context.cacheDir, FOLDER_COVERS_DIR).apply { mkdirs() }
 
-    private fun localFolderCoverFile(coverImageUri: String): File = File(folderCoverCacheDir(), "${sha256(folderCoverCacheKey(coverImageUri))}.jpg")
+    private fun persistRemoteFolderCoverBytes(coverImageUri: String): File? {
+        val scheme = coverImageUri.toUri().scheme?.lowercase()
+        if (scheme != "http" && scheme != "https") return null
 
-    private fun folderCoverCacheKey(coverImageUri: String): String = "${stableCacheKey(coverImageUri)}|folder-cover-original-v2"
+        var connection: HttpURLConnection? = null
+        return runCatching {
+            connection = (URL(coverImageUri).openConnection() as HttpURLConnection).apply {
+                connectTimeout = FOLDER_COVER_DOWNLOAD_TIMEOUT_MS
+                readTimeout = FOLDER_COVER_DOWNLOAD_TIMEOUT_MS
+                instanceFollowRedirects = true
+                setRequestProperty("Accept", "image/avif,image/webp,image/*,*/*")
+            }
+            val responseCode = connection.responseCode
+            if (responseCode !in 200..299) return@runCatching null
+            val contentType = connection.contentType.orEmpty()
+            val extension = folderCoverExtension(contentType, coverImageUri)
+            val outputFile = localFolderCoverFile(coverImageUri, extension)
+            val tempFile = File(outputFile.parentFile, "${outputFile.name}.tmp")
+            connection.inputStream.use { input ->
+                tempFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            if (tempFile.length() <= 0L) {
+                tempFile.delete()
+                return@runCatching null
+            }
+            if (outputFile.exists()) outputFile.delete()
+            if (!tempFile.renameTo(outputFile)) {
+                tempFile.copyTo(outputFile, overwrite = true)
+                tempFile.delete()
+            }
+            outputFile
+        }.getOrElse { error ->
+            Logger.w(TAG, "persistRemoteFolderCoverBytes: failed for $coverImageUri", error)
+            null
+        }.also {
+            connection?.disconnect()
+        }
+    }
+
+    private fun localFolderCoverFile(coverImageUri: String, extension: String): File = File(
+        folderCoverCacheDir(),
+        "${sha256(folderCoverCacheKey(coverImageUri))}.$extension",
+    )
+
+    private fun findLocalFolderCoverFile(coverImageUri: String): File? {
+        val baseName = sha256(folderCoverCacheKey(coverImageUri))
+        return FOLDER_COVER_EXTENSIONS
+            .asSequence()
+            .map { extension -> File(folderCoverCacheDir(), "$baseName.$extension") }
+            .firstOrNull { it.exists() && it.length() > 0L }
+    }
+
+    private fun folderCoverExtension(contentType: String, coverImageUri: String): String {
+        val lowerContentType = contentType.substringBefore(';').trim().lowercase()
+        CONTENT_TYPE_TO_FOLDER_COVER_EXTENSION[lowerContentType]?.let { return it }
+        val extension = coverImageUri
+            .substringBefore('?')
+            .substringBefore('#')
+            .substringAfterLast('.', "")
+            .lowercase()
+        return extension.takeIf { it in FOLDER_COVER_EXTENSIONS } ?: FOLDER_COVER_FALLBACK_EXTENSION
+    }
+
+    private fun readImageBounds(file: File): Pair<Int, Int>? {
+        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, options)
+        val width = options.outWidth
+        val height = options.outHeight
+        return if (width > 0 && height > 0) width to height else null
+    }
+
+    private fun folderCoverCacheKey(coverImageUri: String): String = "${stableCacheKey(coverImageUri)}|folder-cover-source-v3"
 
     private fun sha256(input: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
@@ -2044,8 +2151,8 @@ class ImageBrowserViewModel @Inject constructor(
             }
             if (meta.coverImageUri != null) {
                 val dbCoverUri = meta.coverImageUri!!
-                val localFile = localFolderCoverFile(dbCoverUri)
-                val displayUri = if (localFile.exists()) {
+                val localFile = findLocalFolderCoverFile(dbCoverUri)
+                val displayUri = if (localFile != null) {
                     Uri.fromFile(localFile).toString()
                 } else {
                     dbCoverUri
@@ -2735,6 +2842,7 @@ data class ImageBrowserUiState(
     val cloudHasMore: Boolean = true,
     val cloudTotalItems: Int = 0,
     val cloudLoadingMore: Boolean = false,
+    val cloudLoadingPhase: ImageCloudLoadingPhase = ImageCloudLoadingPhase.READING_SNAPSHOT,
     val cloudError: String? = null,
 )
 
@@ -2743,6 +2851,12 @@ sealed interface ImageGalleryUiState {
     data object Empty : ImageGalleryUiState
     data class Error(val message: String, val cause: Throwable? = null) : ImageGalleryUiState
     data class Content(val folder: Folder) : ImageGalleryUiState
+}
+
+enum class ImageCloudLoadingPhase {
+    READING_SNAPSHOT,
+    REFRESHING_REMOTE,
+    PREPARING_COVERS,
 }
 
 sealed interface ImageBrowserUiEvent {
@@ -2778,10 +2892,24 @@ private const val CLOUD_INDEX_PARENT_LIST_PAGE_SIZE = 5_000
 private const val CLOUD_INDEX_PARENT_LIST_MAX_CONCURRENCY = 8
 private const val DEFAULT_CLOUD_DIMENSION_PROBE_CONCURRENCY = 8
 private const val IMAGE_HOSTING_DIMENSION_PROBE_CONCURRENCY = 2
+private const val IMAGE_HOSTING_FOLDER_COVER_PREFETCH_CONCURRENCY = 2
+private const val IMAGE_HOSTING_FOLDER_COVER_PREFETCH_LIMIT = 24
 private const val CLOUD_THUMBNAIL_WARM_CONCURRENCY = 4
 private const val CLOUD_THUMBNAIL_WARM_DISK_MAX_PER_PAGE = 50
-private const val CLOUD_THUMBNAIL_WARM_MEMORY_MAX_PER_PAGE = 12
+private const val CLOUD_THUMBNAIL_WARM_MEMORY_MAX_PER_PAGE = 24
 private const val IMAGE_HOSTING_IMAGE_SNAPSHOT_PREFIX = "__image_hosting_images__:"
+private const val FOLDER_COVER_DOWNLOAD_TIMEOUT_MS = 15_000
+private const val FOLDER_COVER_FALLBACK_EXTENSION = "webp"
+
+private val FOLDER_COVER_EXTENSIONS = setOf("webp", "avif", "jpg", "jpeg", "png", "gif")
+private val CONTENT_TYPE_TO_FOLDER_COVER_EXTENSION = mapOf(
+    "image/webp" to "webp",
+    "image/avif" to "avif",
+    "image/jpeg" to "jpg",
+    "image/jpg" to "jpg",
+    "image/png" to "png",
+    "image/gif" to "gif",
+)
 
 private data class DimensionProbeTarget(
     val probeUrl: String,
@@ -2848,7 +2976,7 @@ private fun FsSearchItem.toSyntheticImageWebDavMediaItem(
     return WebDavMediaItem(
         name = decodedName,
         href = href,
-        contentType = "",
+        contentType = guessImageContentType(decodedName),
         size = size,
         width = width.takeIf { it > 0 },
         height = height.takeIf { it > 0 },
@@ -2857,4 +2985,21 @@ private fun FsSearchItem.toSyntheticImageWebDavMediaItem(
         serverId = server.id,
         rawVideoUrl = href,
     )
+}
+
+private fun guessImageContentType(name: String): String = when (
+    name.substringBefore('?')
+        .substringBefore('#')
+        .substringAfterLast('.', "")
+        .lowercase()
+) {
+    "webp" -> "image/webp"
+    "avif" -> "image/avif"
+    "jpg", "jpeg" -> "image/jpeg"
+    "png" -> "image/png"
+    "gif" -> "image/gif"
+    "bmp" -> "image/bmp"
+    "heic" -> "image/heic"
+    "heif" -> "image/heif"
+    else -> ""
 }

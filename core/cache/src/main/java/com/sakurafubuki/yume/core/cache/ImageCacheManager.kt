@@ -185,16 +185,25 @@ object ImageCacheManager {
 
     private fun clearDirectories(vararg directories: java.io.File) {
         directories.forEach { cacheDir ->
-            if (cacheDir.exists()) {
-                cacheDir.deleteRecursively()
+            runCatching {
+                if (cacheDir.exists()) {
+                    cacheDir.deleteRecursively()
+                }
+            }.onFailure { error ->
+                Logger.w("ImageCacheManager", "Failed to clear cache directory: ${cacheDir.absolutePath}", error)
             }
         }
     }
 
     private fun directoryUsageBytes(directory: java.io.File): Long {
         if (!directory.exists()) return 0L
-        return directory.walkTopDown()
-            .filter { it.isFile }
-            .sumOf { it.length() }
+        return runCatching {
+            directory.walkTopDown()
+                .filter { it.isFile }
+                .sumOf { it.length() }
+        }.getOrElse { error ->
+            Logger.w("ImageCacheManager", "Failed to measure cache directory: ${directory.absolutePath}", error)
+            0L
+        }
     }
 }
