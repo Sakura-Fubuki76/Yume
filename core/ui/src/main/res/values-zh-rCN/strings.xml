@@ -53,6 +53,8 @@
     <string name="anime4k_restore_title">Anime4K Restore</string>
     <string name="anime4k_autodownscalepre_title">Anime4K AutoDownscalePre</string>
     <string name="anime4k_upscale_title">Anime4K Upscale</string>
+    <string name="anime4k_enabled_status">Anime4K已启用</string>
+    <string name="anime4k_disabled_status">Anime4K已关闭</string>
     <string name="anime4k_clamp_highlights_title">Anime4K Clamp Highlights</string>
     <string name="anime4k_clamp_highlights_description">在 Restore 后限制局部高光过冲</string>
     <string name="anime4k_restore_cnn_m">Anime4K Restore CNN M（速度快，质量均衡）</string>

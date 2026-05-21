@@ -23,6 +23,7 @@ import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.effect.GlEffect
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -104,6 +105,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
@@ -806,19 +808,7 @@ class PlayerService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(playerPreferences.pauseOnHeadsetDisconnect)
             .build()
             .also { it ->
-                val orderedTypes = playerPreferences.videoEffectsOrder
-                val effects = orderedTypes.mapNotNull { type ->
-                    when (type) {
-                        VideoEffectType.AUTODOWNSCALEPRE -> null // Merged into UPSCALE as downscaleFactor parameter
-                        VideoEffectType.UPSCALE -> playerPreferences.anime4KUpscaleMode.takeIf { it != Anime4KUpscaleMode.OFF }
-                            ?.let { Anime4KUpscaleEffect(it, playerPreferences.anime4KAutoDownscalePreMode) }
-                        VideoEffectType.RESTORE -> playerPreferences.anime4KRestoreMode.takeIf { it != Anime4KRestoreMode.OFF }
-                            ?.let { Anime4KRestoreEffect(it) }
-                        VideoEffectType.DEBAND -> if (playerPreferences.enableDeband) DebandEffect() else null
-                        VideoEffectType.CLAMP_HIGHLIGHTS -> if (playerPreferences.enableAnime4KClampHighlights) Anime4KClampHighlightsEffect() else null
-                        VideoEffectType.DITHER -> if (playerPreferences.enableDither) DitherEffect() else null
-                    }
-                }
+                val effects = playerPreferences.buildVideoEffects()
                 Logger.i(TAG, "Effect pipeline (${effects.size} active): ${effects.joinToString(" → ") { it::class.simpleName ?: "?" }}")
                 Logger.i(TAG, "DownscalePre=${playerPreferences.anime4KAutoDownscalePreMode} Upscale=${playerPreferences.anime4KUpscaleMode}")
                 it.setVideoEffects(effects)
@@ -830,6 +820,14 @@ class PlayerService : MediaSessionService() {
                     LoopMode.ALL -> Player.REPEAT_MODE_ALL
                 }
             }
+
+        serviceScope.launch {
+            preferencesRepository.playerPreferences
+                .distinctUntilChanged { old, new -> old.videoEffectsKey() == new.videoEffectsKey() }
+                .collect { preferences ->
+                    player.applyVideoEffects(preferences)
+                }
+        }
 
         try {
             mediaSession = MediaSession.Builder(this, player).apply {
@@ -1399,6 +1397,37 @@ private var Player.playerSpecificSubtitleSpeed: Float
             is ExoPlayer -> this.subtitleSpeed = value
         }
     }
+
+@OptIn(UnstableApi::class)
+private fun ExoPlayer.applyVideoEffects(preferences: PlayerPreferences) {
+    val effects = preferences.buildVideoEffects()
+    Logger.i(TAG, "Effect pipeline (${effects.size} active): ${effects.joinToString(" -> ") { it::class.simpleName ?: "?" }}")
+    Logger.i(TAG, "DownscalePre=${preferences.anime4KAutoDownscalePreMode} Upscale=${preferences.anime4KUpscaleMode}")
+    setVideoEffects(effects)
+}
+
+private fun PlayerPreferences.buildVideoEffects(): List<GlEffect> = videoEffectsOrder.mapNotNull { type ->
+    when (type) {
+        VideoEffectType.AUTODOWNSCALEPRE -> null
+        VideoEffectType.UPSCALE -> anime4KUpscaleMode.takeIf { it != Anime4KUpscaleMode.OFF }
+            ?.let { Anime4KUpscaleEffect(it, anime4KAutoDownscalePreMode) }
+        VideoEffectType.RESTORE -> anime4KRestoreMode.takeIf { it != Anime4KRestoreMode.OFF }
+            ?.let { Anime4KRestoreEffect(it) }
+        VideoEffectType.DEBAND -> if (enableDeband) DebandEffect() else null
+        VideoEffectType.CLAMP_HIGHLIGHTS -> if (enableAnime4KClampHighlights) Anime4KClampHighlightsEffect() else null
+        VideoEffectType.DITHER -> if (enableDither) DitherEffect() else null
+    }
+}
+
+private fun PlayerPreferences.videoEffectsKey(): List<Any> = listOf(
+    anime4KRestoreMode,
+    anime4KAutoDownscalePreMode,
+    anime4KUpscaleMode,
+    enableAnime4KClampHighlights,
+    enableDeband,
+    enableDither,
+    videoEffectsOrder,
+)
 
 @OptIn(UnstableApi::class)
 private class ScrubbingAwareLoadControl(

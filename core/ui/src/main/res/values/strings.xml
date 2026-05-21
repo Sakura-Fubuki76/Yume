@@ -67,6 +67,8 @@
     <string name="anime4k_restore_title">Anime4K Restore</string>
     <string name="anime4k_autodownscalepre_title">Anime4K AutoDownscalePre</string>
     <string name="anime4k_upscale_title">Anime4K Upscale</string>
+    <string name="anime4k_enabled_status">Anime4K enabled</string>
+    <string name="anime4k_disabled_status">Anime4K disabled</string>
     <string name="anime4k_clamp_highlights_title">Anime4K Clamp Highlights</string>
     <string name="anime4k_clamp_highlights_description">Clamp local highlight overshoot after restore processing</string>
     <string name="anime4k_restore_cnn_m">Anime4K Restore CNN M (Fast, Balanced)</string>
