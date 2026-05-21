@@ -7,6 +7,7 @@ import coil3.SingletonImageLoader
 import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.memory.MemoryCache
+import coil3.request.CachePolicy
 import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.model.CacheExpiry
 import okio.FileSystem
@@ -51,6 +52,7 @@ object ImageCacheManager {
     }
 
     private const val IMAGE_CACHE_DIR = "image_cache"
+    private const val LEGACY_COIL_DEFAULT_IMAGE_CACHE_DIR = "coil3_disk_cache"
     private const val FOLDER_COVER_IMAGES_DIR = "folder_cover_images"
     private const val LOCAL_IMAGE_CACHE_DIR = "local_image_browser_cache"
     private const val THUMBNAILS_CACHE_DIR = "thumbnails"
@@ -84,20 +86,30 @@ object ImageCacheManager {
         context: Context,
         diskCacheSizeMb: Int,
         memoryCachePercent: Double = 0.25,
-    ): ImageLoader = ImageLoader.Builder(context)
-        .memoryCache {
-            MemoryCache.Builder()
-                .maxSizePercent(context, memoryCachePercent)
-                .build()
+    ): ImageLoader {
+        val builder = ImageLoader.Builder(context)
+            .memoryCache {
+                MemoryCache.Builder()
+                    .maxSizePercent(context, memoryCachePercent)
+                    .build()
+            }
+        if (diskCacheSizeMb > 0) {
+            builder
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .diskCache {
+                    DiskCache.Builder()
+                        .fileSystem(FileSystem.SYSTEM)
+                        .directory(context.cacheDir.resolve(IMAGE_CACHE_DIR))
+                        .maxSizeBytes(diskCacheSizeMb.toLong() * 1024 * 1024)
+                        .build()
+                }
+        } else {
+            builder
+                .diskCachePolicy(CachePolicy.DISABLED)
+                .diskCache(null)
         }
-        .diskCache {
-            DiskCache.Builder()
-                .fileSystem(FileSystem.SYSTEM)
-                .directory(context.cacheDir.resolve(IMAGE_CACHE_DIR))
-                .maxSizeBytes(diskCacheSizeMb.toLong() * 1024 * 1024)
-                .build()
-        }
-        .build()
+        return builder.build()
+    }
 
     fun clearAll(imageLoader: ImageLoader) {
         imageLoader.memoryCache?.clear()
@@ -105,11 +117,19 @@ object ImageCacheManager {
     }
 
     fun clearImageDiskCache(context: Context) {
+        runCatching { SingletonImageLoader.get(context).diskCache?.clear() }
         clearDirectories(
             context.cacheDir.resolve(IMAGE_CACHE_DIR),
+            context.cacheDir.resolve(LEGACY_COIL_DEFAULT_IMAGE_CACHE_DIR),
             context.cacheDir.resolve(FOLDER_COVER_IMAGES_DIR),
         )
         CacheTimestampStore.clear(context)
+    }
+
+    fun clearLegacyCoilDefaultImageCache(context: Context) {
+        clearDirectories(
+            context.cacheDir.resolve(LEGACY_COIL_DEFAULT_IMAGE_CACHE_DIR),
+        )
     }
 
     fun clearLocalImageDiskCache(context: Context) {
@@ -136,6 +156,7 @@ object ImageCacheManager {
     fun getCurrentUsageBytes(context: Context): Long {
         val totalBytes = listOf(
             context.cacheDir.resolve(IMAGE_CACHE_DIR),
+            context.cacheDir.resolve(LEGACY_COIL_DEFAULT_IMAGE_CACHE_DIR),
             context.cacheDir.resolve(FOLDER_COVER_IMAGES_DIR),
             context.cacheDir.resolve(LOCAL_IMAGE_CACHE_DIR),
             context.cacheDir.resolve(THUMBNAILS_CACHE_DIR),
@@ -148,6 +169,7 @@ object ImageCacheManager {
 
     fun getImageDiskCacheUsageBytes(context: Context): Long = listOf(
         context.cacheDir.resolve(IMAGE_CACHE_DIR),
+        context.cacheDir.resolve(LEGACY_COIL_DEFAULT_IMAGE_CACHE_DIR),
         context.cacheDir.resolve(FOLDER_COVER_IMAGES_DIR),
     ).sumOf(::directoryUsageBytes)
 

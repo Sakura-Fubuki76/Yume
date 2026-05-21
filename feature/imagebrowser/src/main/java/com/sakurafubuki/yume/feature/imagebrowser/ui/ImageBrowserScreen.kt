@@ -135,7 +135,7 @@ object ImageViewerStore {
     var previewQuality: ImageQuality = DEFAULT_IMAGE_QUALITY
     var imageBrowserMemoryCachePercent: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_MEMORY_CACHE_PERCENT
     var imageBrowserThumbnailSizePx: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_THUMBNAIL_SIZE_PX
-    var imageBrowserPreloadRange: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_PRELOAD_RANGE
+    var imageCloudDiskCacheEnabled: Boolean = true
     var launchUri: String? = null
     var launchOriginBounds: Rect? = null
     var lockGridScroll: Boolean = false
@@ -144,7 +144,6 @@ object ImageViewerStore {
     var viewerIndex: Int = -1
     var bottomBarAlpha by mutableFloatStateOf(1f)
     var heroTransitionImageUri: String? by mutableStateOf(null)
-    var imageHostingBaseUrls: Set<String> = emptySet()
 
     fun showViewer(index: Int) {
         viewerIndex = index
@@ -318,14 +317,14 @@ private fun ImageBrowserScreen(
         currentFolder,
         uiState.preferences.imageBrowserMemoryCachePercent,
         uiState.preferences.imageBrowserThumbnailSizePx,
-        uiState.preferences.imageBrowserPreloadRange,
+        uiState.preferences.imageCloudDiskCacheEnabled,
         uiState.preferences.imageQuality,
     ) {
         ImageViewerStore.images = currentFolder?.mediaList ?: emptyList()
         ImageViewerStore.previewQuality = uiState.preferences.imageQuality
         ImageViewerStore.imageBrowserMemoryCachePercent = uiState.preferences.imageBrowserMemoryCachePercent
         ImageViewerStore.imageBrowserThumbnailSizePx = uiState.preferences.imageBrowserThumbnailSizePx
-        ImageViewerStore.imageBrowserPreloadRange = uiState.preferences.imageBrowserPreloadRange
+        ImageViewerStore.imageCloudDiskCacheEnabled = uiState.preferences.imageCloudDiskCacheEnabled
     }
 
     Scaffold(
@@ -1889,18 +1888,6 @@ fun ImageViewerRoute(
                 )
             }
 
-            NeighborImagePrefetch(
-                images = images,
-                currentPage = pagerState.currentPage,
-                imageQuality = ImageViewerStore.previewQuality,
-                radius = if (pagerState.isScrollInProgress) {
-                    minOf(1, ImageViewerStore.imageBrowserPreloadRange.coerceIn(1, 6))
-                } else {
-                    ImageViewerStore.imageBrowserPreloadRange.coerceIn(1, 6)
-                },
-                localImageLoader = localImageLoader,
-            )
-
             if (shouldShowHeroOverlay) {
                 SharedElementHeroOverlayContent(
                     heroRect = overlayHeroRect,
@@ -2045,46 +2032,4 @@ private suspend fun awaitSharedElementBounds(
         bounds = registry.getBounds(key)
     }
     return bounds
-}
-
-@Composable
-private fun NeighborImagePrefetch(
-    images: List<Video>,
-    currentPage: Int,
-    imageQuality: ImageQuality,
-    radius: Int,
-    localImageLoader: ImageLoader,
-) {
-    val context = LocalContext.current
-    val safeRadius = radius.coerceIn(1, 6)
-    val neighborUris = remember(images, currentPage, safeRadius) {
-        buildList {
-            for (offset in 1..safeRadius) {
-                images.getOrNull(currentPage - offset)?.displayUriString()?.let(::add)
-                images.getOrNull(currentPage + offset)?.displayUriString()?.let(::add)
-            }
-        }.distinct()
-    }
-    if (neighborUris.isEmpty()) return
-
-    Row(
-        modifier = Modifier
-            .size(1.dp)
-            .graphicsLayer { alpha = 0f },
-    ) {
-        neighborUris.forEach { uri ->
-            AsyncImage(
-                model = buildImageRequest(
-                    context = context,
-                    data = uri,
-                    quality = imageQuality,
-                    profile = ImageRequestProfile.PREFETCH,
-                    thumbnailMaxEdgePx = ImageViewerStore.imageBrowserThumbnailSizePx,
-                ),
-                imageLoader = resolveImageLoader(context, uri, localImageLoader),
-                contentDescription = null,
-                modifier = Modifier.size(1.dp),
-            )
-        }
-    }
 }

@@ -17,7 +17,6 @@ import com.sakurafubuki.yume.core.model.ImageQuality
 internal enum class ImageRequestProfile {
     THUMBNAIL,
     VIEWER,
-    PREFETCH,
 }
 
 internal fun stableCacheKey(data: Any): String {
@@ -40,24 +39,19 @@ internal fun buildImageRequest(
     val cacheKeySuffix = when (profile) {
         ImageRequestProfile.THUMBNAIL -> "thumb"
         ImageRequestProfile.VIEWER -> "viewer"
-        ImageRequestProfile.PREFETCH -> "prefetch"
     }
     val isRemote = isRemoteImageData(data)
-    val isImageHosting = isRemote &&
-        ImageViewerStore.imageHostingBaseUrls.any { baseUrl ->
-            data.toString().startsWith(baseUrl, ignoreCase = true)
-        }
     val cacheKey = if (isRemote) stableCacheKey(data) else data.toString()
+    val useRemoteDiskCache = isRemote && ImageViewerStore.imageCloudDiskCacheEnabled
     return ImageRequest.Builder(context)
         .data(data)
         .crossfade(false)
         .memoryCacheKey("$cacheKey|$quality|$cacheKeySuffix|$thumbnailMaxEdgePx")
         .apply {
-            if (isRemote && !isImageHosting) {
+            if (useRemoteDiskCache) {
                 diskCacheKey("$cacheKey|$quality|$cacheKeySuffix|$thumbnailMaxEdgePx")
             } else {
                 diskCachePolicy(CachePolicy.DISABLED)
-
                 memoryCachePolicy(CachePolicy.ENABLED)
             }
         }
@@ -73,7 +67,7 @@ internal fun buildImageRequest(
         }
         .listener(
             onSuccess = { _, result ->
-                if (isRemote && !isImageHosting && result.dataSource == coil3.decode.DataSource.NETWORK) {
+                if (useRemoteDiskCache && result.dataSource == coil3.decode.DataSource.NETWORK) {
                     CacheTimestampStore.record(context, cacheKey)
                 }
             },
@@ -132,7 +126,6 @@ private fun ImageRequest.Builder.applyImageQuality(
         ?: ApplicationPreferences.DEFAULT_IMAGE_BROWSER_THUMBNAIL_SIZE_PX
     val (baseWidth, baseHeight) = when (profile) {
         ImageRequestProfile.THUMBNAIL -> thumbnailSizePx to thumbnailSizePx
-        ImageRequestProfile.PREFETCH -> (thumbnailSizePx * 3 / 2) to (thumbnailSizePx * 3 / 2)
         ImageRequestProfile.VIEWER -> 1600 to 1600
     }
     val ratio = quality.compressionRatio

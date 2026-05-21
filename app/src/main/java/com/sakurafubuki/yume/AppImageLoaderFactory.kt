@@ -10,6 +10,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.sakurafubuki.yume.core.cache.ImageCacheManager
+import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.common.di.ApplicationScope
 import com.sakurafubuki.yume.core.data.repository.PreferencesRepository
 import com.sakurafubuki.yume.core.data.repository.WebDavServerRepository
@@ -142,11 +143,14 @@ class AppImageLoaderFactory @Inject constructor(
             }
             .build()
 
-        val appliedCacheSizeMb = diskCacheSizeMb ?: preferencesRepository.applicationPreferences.value.diskCacheSizeMb
+        val preferences = preferencesRepository.applicationPreferences.value
+        val appliedCacheSizeMb = diskCacheSizeMb ?: preferences.diskCacheSizeMb
+        val cloudDiskCacheEnabled = preferences.imageCloudDiskCacheEnabled && appliedCacheSizeMb > 0
         val thumbnailCacheMaxBytes = thumbnailCacheBytes()
-        val memoryCachePercent = preferencesRepository.applicationPreferences.value.imageBrowserMemoryCachePercent
+        val memoryCachePercent = preferences.imageBrowserMemoryCachePercent
             .coerceIn(10, 40)
         val appliedMemoryCacheBytes = ImageCacheManager.memoryCacheBytesFromRamPercent(context, memoryCachePercent)
+        ImageCacheManager.clearLegacyCoilDefaultImageCache(context)
 
         val localThumbnailDiskCache = lazy {
             DiskCache.Builder()
@@ -163,7 +167,7 @@ class AppImageLoaderFactory @Inject constructor(
                 .build()
         }
 
-        return ImageLoader.Builder(context)
+        val builder = ImageLoader.Builder(context)
             .memoryCache {
                 MemoryCache.Builder()
                     .maxSizeBytes(appliedMemoryCacheBytes)
@@ -187,16 +191,42 @@ class AppImageLoaderFactory @Inject constructor(
                     ),
                 )
             }
-            .diskCachePolicy(CachePolicy.ENABLED)
-            .diskCache(
-                DiskCache.Builder()
-                    .fileSystem(FileSystem.SYSTEM)
-                    .directory(context.cacheDir.resolve(IMAGE_CACHE_DIR))
-                    .maxSizeBytes(appliedCacheSizeMb.toLong() * 1024 * 1024)
-                    .build(),
-            )
             .crossfade(true)
-            .build()
+
+        if (cloudDiskCacheEnabled) {
+            builder
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .diskCache {
+                    DiskCache.Builder()
+                        .fileSystem(FileSystem.SYSTEM)
+                        .directory(context.cacheDir.resolve(IMAGE_CACHE_DIR))
+                        .maxSizeBytes(appliedCacheSizeMb.toLong() * 1024 * 1024)
+                        .build()
+                }
+        } else {
+            builder
+                .diskCachePolicy(CachePolicy.DISABLED)
+                .diskCache(null)
+        }
+
+        return runCatching { builder.build() }
+            .getOrElse { error ->
+                Logger.w("AppImageLoaderFactory", "Failed to build image loader with disk cache; falling back to memory-only loader", error)
+                ImageCacheManager.clearImageDiskCache(context)
+                ImageLoader.Builder(context)
+                    .memoryCache {
+                        MemoryCache.Builder()
+                            .maxSizeBytes(appliedMemoryCacheBytes)
+                            .build()
+                    }
+                    .components {
+                        add(OkHttpNetworkFetcherFactory(callFactory = { imageNetworkClient }))
+                    }
+                    .diskCachePolicy(CachePolicy.DISABLED)
+                    .diskCache(null)
+                    .crossfade(true)
+                    .build()
+            }
             .also {
                 localThumbnailDiskCache.value
                 ImageCacheManager.setRemoteThumbnailDiskCache(remoteThumbnailDiskCache.value)

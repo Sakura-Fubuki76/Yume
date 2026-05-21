@@ -362,7 +362,7 @@ private fun AddImageHostingDialog(
     onDismiss: () -> Unit,
 ) {
     var url by remember(initialServer?.id) {
-        mutableStateOf(initialServer?.url ?: "https://img.sakurafubuki7.me")
+        mutableStateOf(initialServer?.url ?: "")
     }
     var token by remember(initialServer?.id) {
         mutableStateOf(initialServer?.username?.removePrefix("Bearer ") ?: "")

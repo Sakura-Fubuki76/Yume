@@ -4,6 +4,7 @@ import android.net.Uri
 import com.sakurafubuki.yume.core.model.WebDavMediaItem
 import com.sakurafubuki.yume.core.model.WebDavServer
 import java.time.Instant
+import java.time.format.DateTimeParseException
 import java.util.Date
 
 fun cleanThumbUrl(url: String): String = url
@@ -44,14 +45,24 @@ fun FsListItem.toWebDavMediaItem(server: WebDavServer, dirPath: String): WebDavM
         .split('/')
         .filter { it.isNotBlank() }
         .joinToString("/") { Uri.encode(Uri.decode(it)) }
+    val imageHostingFileUrl = if (server.isImageHosting && !is_dir) {
+        val fullPath = if (encodedDirSegments.isBlank()) {
+            encodedName
+        } else {
+            "$encodedDirSegments/$encodedName"
+        }
+        "$rootBaseUrl/file/$fullPath"
+    } else {
+        null
+    }
     val rawVideoUrl: String? = if (!is_dir) {
         if (server.isImageHosting) {
             if (thumb.isNotBlank() && (thumb.startsWith("http://") || thumb.startsWith("https://"))) {
                 thumb
             } else if (thumb.isNotBlank()) {
-                "$rootBaseUrl/${thumb.trimStart('/')}"
+                "$rootBaseUrl/${thumb.trimStart('/').toEncodedPathPreservingSlashes()}"
             } else {
-                "$rootBaseUrl/$encodedDirSegments/$encodedName"
+                imageHostingFileUrl ?: "$rootBaseUrl/$encodedDirSegments/$encodedName"
             }
         } else {
             val rawFullPath = if (dirPath == "/") "/d/$encodedName" else "/d/$encodedDirSegments/$encodedName"
@@ -102,7 +113,15 @@ fun FsListItem.toWebDavMediaItem(server: WebDavServer, dirPath: String): WebDavM
 
 private fun parseOpenListModifiedTime(value: String): Date? {
     if (value.isBlank()) return null
-    return runCatching { Date.from(Instant.parse(value)) }.getOrNull()
+    value.toLongOrNull()?.let { timestamp ->
+        val millis = if (timestamp < 10_000_000_000L) timestamp * 1000L else timestamp
+        return Date(millis)
+    }
+    return try {
+        Date.from(Instant.parse(value))
+    } catch (_: DateTimeParseException) {
+        null
+    }
 }
 
 private fun normalizePath(path: String): String {
@@ -111,3 +130,7 @@ private fun normalizePath(path: String): String {
     val withLeadingSlash = if (trimmed.startsWith('/')) trimmed else "/$trimmed"
     return withLeadingSlash.removeSuffix("/").ifBlank { "/" }
 }
+
+private fun String.toEncodedPathPreservingSlashes(): String = split('/')
+    .filter { it.isNotBlank() }
+    .joinToString("/") { Uri.encode(Uri.decode(it)) }

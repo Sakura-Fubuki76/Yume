@@ -44,6 +44,7 @@ import com.sakurafubuki.yume.core.ui.components.ListSectionTitle
 import com.sakurafubuki.yume.core.ui.components.NextDialog
 import com.sakurafubuki.yume.core.ui.components.NextTopAppBar
 import com.sakurafubuki.yume.core.ui.components.PreferenceSlider
+import com.sakurafubuki.yume.core.ui.components.PreferenceSwitch
 import com.sakurafubuki.yume.core.ui.designsystem.NextIcons
 import com.sakurafubuki.yume.settings.screens.medialibrary.MediaLibraryPreferencesUiEvent
 import com.sakurafubuki.yume.settings.screens.medialibrary.MediaLibraryPreferencesUiState
@@ -98,7 +99,6 @@ private fun PerformancePreferencesContent(
             val imageCacheSizeTitle = stringResource(R.string.image_cache_size)
             val imageBrowserMemoryCacheSizeTitle = stringResource(R.string.image_browser_memory_cache_size)
             val imageBrowserThumbnailSizeTitle = stringResource(R.string.image_browser_thumbnail_size)
-            val imageBrowserPreloadRangeTitle = stringResource(R.string.image_browser_preload_range)
             val imageBrowserPreloadPageCountTitle = stringResource(R.string.image_browser_preload_page_count)
             val streamingMinBufferTitle = stringResource(R.string.streaming_min_buffer)
             val streamingMaxBufferTitle = stringResource(R.string.streaming_max_buffer)
@@ -141,31 +141,6 @@ private fun PerformancePreferencesContent(
                     isLastItem = false,
                 )
                 PreferenceSlider(
-                    title = imageBrowserPreloadRangeTitle,
-                    description = stringResource(R.string.image_browser_preload_range_desc, uiState.imageBrowserPreloadRange),
-                    icon = NextIcons.Update,
-                    value = uiState.imageBrowserPreloadRange.toFloat(),
-                    valueRange = ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_RANGE.toFloat()..ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_RANGE.toFloat(),
-                    onValueChange = {
-                        onEvent(MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadRange(it.toInt()))
-                    },
-                    trailingContent = {
-                        SliderCustomInputButton {
-                            pendingCustomValueInput = CustomValueInputDialogState(
-                                title = imageBrowserPreloadRangeTitle,
-                                initialValue = uiState.imageBrowserPreloadRange,
-                                minValue = ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_RANGE,
-                                maxValue = ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_RANGE,
-                                onConfirm = {
-                                    onEvent(MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadRange(it))
-                                },
-                            )
-                        }
-                    },
-                    isFirstItem = false,
-                    isLastItem = false,
-                )
-                PreferenceSlider(
                     title = imageBrowserPreloadPageCountTitle,
                     description = stringResource(R.string.image_browser_preload_page_count_desc, uiState.imageBrowserPreloadPageCount),
                     icon = NextIcons.Update,
@@ -194,6 +169,15 @@ private fun PerformancePreferencesContent(
 
             ListSectionTitle(text = stringResource(id = R.string.image_cache))
             Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                PreferenceSwitch(
+                    title = stringResource(R.string.enable_cloud_image_cache),
+                    description = stringResource(R.string.enable_cloud_image_cache_desc),
+                    icon = NextIcons.Image,
+                    isChecked = uiState.imageCloudDiskCacheEnabled,
+                    onClick = { onEvent(MediaLibraryPreferencesUiEvent.ToggleImageCloudDiskCache) },
+                    isFirstItem = true,
+                    isLastItem = false,
+                )
                 PreferenceSlider(
                     title = imageCacheSizeTitle,
                     description = stringResource(R.string.cache_size_gb, uiState.imageCacheSizeMb / 1024),
@@ -213,7 +197,7 @@ private fun PerformancePreferencesContent(
                             )
                         }
                     },
-                    isFirstItem = true,
+                    isFirstItem = false,
                     isLastItem = false,
                 )
                 ClickablePreferenceItem(

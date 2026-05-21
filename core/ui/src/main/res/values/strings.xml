@@ -282,8 +282,8 @@
     <string name="edit_image_hosting">编辑图床</string>
     <string name="image_hosting_url">网址</string>
     <string name="image_hosting_token">令牌</string>
-    <string name="image_hosting_url_placeholder" translatable="false">https://img.sakurafubuki7.me</string>
-    <string name="image_hosting_token_placeholder" translatable="false">UPLOAD_TOKEN</string>
+    <string name="image_hosting_url_placeholder">https://example.com</string>
+    <string name="image_hosting_token_placeholder">Bearer token</string>
     <string name="no_images_found">未找到图片</string>
     <string name="try_another_folder_or_pull_to_refresh">请尝试其他文件夹，或下拉刷新。</string>
     <string name="refresh">刷新</string>
@@ -384,6 +384,8 @@
     <string name="performance_description">Image browsing and cloud cache settings</string>
     <string name="image_browsing_experience">Image browsing experience</string>
     <string name="image_cache">Cloud image cache</string>
+    <string name="enable_cloud_image_cache">Enable cloud image cache</string>
+    <string name="enable_cloud_image_cache_desc">Cache images loaded from WebDAV and image hosting services on disk</string>
 
     <string name="streaming_buffer">Streaming buffer</string>
     <string name="streaming_min_buffer">Minimum buffer</string>
@@ -409,8 +411,6 @@
     <string name="image_browser_thumbnail_size_desc">%1$d px</string>
     <string name="image_browser_thumbnail_size_original">Original</string>
     <string name="image_browser_disk_cache_size">Disk cache limit</string>
-    <string name="image_browser_preload_range">Preload images</string>
-    <string name="image_browser_preload_range_desc">Preload %1$d images to each side in viewer</string>
     <string name="image_browser_preload_page_count">Preload pages</string>
     <string name="image_browser_preload_page_count_desc">Eagerly prefetch %1$d page(s) ahead in gallery</string>
     <string name="cache_size_mb">%1$d MB</string>

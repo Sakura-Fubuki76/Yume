@@ -277,8 +277,8 @@
     <string name="edit_image_hosting">编辑图床</string>
     <string name="image_hosting_url">网址</string>
     <string name="image_hosting_token">令牌</string>
-    <string name="image_hosting_url_placeholder" translatable="false">https://img.sakurafubuki7.me</string>
-    <string name="image_hosting_token_placeholder" translatable="false">UPLOAD_TOKEN</string>
+    <string name="image_hosting_url_placeholder">https://example.com</string>
+    <string name="image_hosting_token_placeholder">Bearer token</string>
     <string name="no_images_found">未找到图片</string>
     <string name="try_another_folder_or_pull_to_refresh">请尝试其他文件夹，或下拉刷新。</string>
     <string name="refresh">刷新</string>
@@ -369,6 +369,8 @@
     <string name="performance_description">图片浏览与云端缓存设置</string>
     <string name="image_browsing_experience">图片浏览体验</string>
     <string name="image_cache">云端图片缓存</string>
+    <string name="enable_cloud_image_cache">启用云端图片缓存</string>
+    <string name="enable_cloud_image_cache_desc">将 WebDAV 和图床加载的图片缓存到磁盘</string>
 
     <string name="clear_image_cache">清除云端图片缓存</string>
     <string name="current_cache_usage">当前占用 %1$d MB</string>
@@ -393,8 +395,6 @@
     <string name="image_browser_thumbnail_size">缩略图尺寸</string>
     <string name="image_browser_thumbnail_size_desc">%1$d px</string>
     <string name="image_browser_disk_cache_size">磁盘缓存上限</string>
-    <string name="image_browser_preload_range">预加载图片范围</string>
-    <string name="image_browser_preload_range_desc">浏览大图时预加载左右两侧各 %1$d 张</string>
     <string name="image_browser_preload_page_count">预加载页数</string>
     <string name="image_browser_preload_page_count_desc">浏览目录时提前预加载 %1$d 页</string>
     <string name="streaming_buffer">流媒体缓冲</string>

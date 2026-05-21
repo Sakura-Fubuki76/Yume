@@ -48,8 +48,9 @@ class YumeApplication :
 
     private fun runCacheExpiryCleanup() {
         applicationScope.launch {
-            val expiry = preferencesRepository.applicationPreferences.value.imageCacheExpiry
-            if (expiry.millis != null) {
+            val preferences = preferencesRepository.applicationPreferences.value
+            val expiry = preferences.imageCacheExpiry
+            if (preferences.imageCloudDiskCacheEnabled && expiry.millis != null) {
                 ImageCacheManager.cleanExpiredCloudImageCache(this@YumeApplication, expiry)
             }
         }

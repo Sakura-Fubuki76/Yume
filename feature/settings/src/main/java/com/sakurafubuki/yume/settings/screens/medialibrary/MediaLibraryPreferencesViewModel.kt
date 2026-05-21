@@ -54,6 +54,7 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
                     currentState.copy(
                         preferences = it,
                         imageCacheSizeMb = it.diskCacheSizeMb,
+                        imageCloudDiskCacheEnabled = it.imageCloudDiskCacheEnabled,
                         imageCacheExpiry = it.imageCacheExpiry,
 
                         streamingMinBufferMs = it.streamingMinBufferMs,
@@ -62,7 +63,6 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
                         streamingBufferForPlaybackAfterRebufferMs = it.streamingBufferForPlaybackAfterRebufferMs,
                         imageBrowserMemoryCachePercent = it.imageBrowserMemoryCachePercent,
                         imageBrowserThumbnailSizePx = it.imageBrowserThumbnailSizePx,
-                        imageBrowserPreloadRange = it.imageBrowserPreloadRange,
                         imageBrowserPreloadPageCount = it.imageBrowserPreloadPageCount,
                     )
                 }
@@ -92,6 +92,7 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
             is MediaLibraryPreferencesUiEvent.DeleteWebDavServer -> deleteWebDavServer(event.server)
             is MediaLibraryPreferencesUiEvent.TestWebDavServer -> testWebDavServer(event.server)
             is MediaLibraryPreferencesUiEvent.UpdateImageCacheSize -> setImageCacheSize(event.sizeMb)
+            MediaLibraryPreferencesUiEvent.ToggleImageCloudDiskCache -> toggleImageCloudDiskCache()
             MediaLibraryPreferencesUiEvent.ClearImageCache -> clearImageCache()
 
             is MediaLibraryPreferencesUiEvent.UpdateStreamingMinBufferMs -> setStreamingMinBufferMs(event.value)
@@ -100,7 +101,6 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
             is MediaLibraryPreferencesUiEvent.UpdateStreamingBufferForPlaybackAfterRebufferMs -> setStreamingBufferForPlaybackAfterRebufferMs(event.value)
             is MediaLibraryPreferencesUiEvent.UpdateImageBrowserMemoryCachePercent -> setImageBrowserMemoryCachePercent(event.percent)
             is MediaLibraryPreferencesUiEvent.UpdateImageBrowserThumbnailSizePx -> setImageBrowserThumbnailSizePx(event.sizePx)
-            is MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadRange -> setImageBrowserPreloadRange(event.range)
             is MediaLibraryPreferencesUiEvent.UpdateImageBrowserPreloadPageCount -> setImageBrowserPreloadPageCount(event.count)
             is MediaLibraryPreferencesUiEvent.UpdateImageCacheExpiry -> setImageCacheExpiry(event.expiry)
         }
@@ -144,6 +144,17 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
                 )
             }
             ImageCacheManager.rebuildGlobalImageLoader(normalizedSizeMb)
+            requestCacheUsageRefresh()
+        }
+    }
+
+    private fun toggleImageCloudDiskCache() {
+        viewModelScope.launch {
+            preferencesRepository.updateApplicationPreferences {
+                it.copy(imageCloudDiskCacheEnabled = !it.imageCloudDiskCacheEnabled)
+            }
+            val diskCacheSize = preferencesRepository.applicationPreferences.value.diskCacheSizeMb
+            ImageCacheManager.rebuildGlobalImageLoader(diskCacheSize)
             requestCacheUsageRefresh()
         }
     }
@@ -249,18 +260,6 @@ class MediaLibraryPreferencesViewModel @Inject constructor(
         }
     }
 
-    private fun setImageBrowserPreloadRange(range: Int) {
-        viewModelScope.launch {
-            val normalized = range.coerceIn(
-                ApplicationPreferences.MIN_IMAGE_BROWSER_PRELOAD_RANGE,
-                ApplicationPreferences.MAX_IMAGE_BROWSER_PRELOAD_RANGE,
-            )
-            preferencesRepository.updateApplicationPreferences {
-                it.copy(imageBrowserPreloadRange = normalized)
-            }
-        }
-    }
-
     private fun setImageBrowserPreloadPageCount(count: Int) {
         viewModelScope.launch {
             val normalized = count.coerceIn(
@@ -296,6 +295,7 @@ data class MediaLibraryPreferencesUiState(
     val preferences: ApplicationPreferences = ApplicationPreferences(),
     val servers: List<WebDavServer> = emptyList(),
     val imageCacheSizeMb: Int = 3072,
+    val imageCloudDiskCacheEnabled: Boolean = true,
     val imageCacheExpiry: CacheExpiry = CacheExpiry.NEVER,
 
     val streamingMinBufferMs: Int = ApplicationPreferences.DEFAULT_STREAMING_MIN_BUFFER_MS,
@@ -305,7 +305,6 @@ data class MediaLibraryPreferencesUiState(
     val currentImageCacheUsageMb: Long = 0,
     val imageBrowserMemoryCachePercent: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
     val imageBrowserThumbnailSizePx: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_THUMBNAIL_SIZE_PX,
-    val imageBrowserPreloadRange: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_PRELOAD_RANGE,
     val imageBrowserPreloadPageCount: Int = ApplicationPreferences.DEFAULT_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
     val lastConnectionTestResult: Boolean? = null,
 )
@@ -316,6 +315,7 @@ sealed interface MediaLibraryPreferencesUiEvent {
     data class DeleteWebDavServer(val server: WebDavServer) : MediaLibraryPreferencesUiEvent
     data class TestWebDavServer(val server: WebDavServer) : MediaLibraryPreferencesUiEvent
     data class UpdateImageCacheSize(val sizeMb: Int) : MediaLibraryPreferencesUiEvent
+    data object ToggleImageCloudDiskCache : MediaLibraryPreferencesUiEvent
 
     data class UpdateStreamingMinBufferMs(val value: Int) : MediaLibraryPreferencesUiEvent
     data class UpdateStreamingMaxBufferMs(val value: Int) : MediaLibraryPreferencesUiEvent
@@ -323,7 +323,6 @@ sealed interface MediaLibraryPreferencesUiEvent {
     data class UpdateStreamingBufferForPlaybackAfterRebufferMs(val value: Int) : MediaLibraryPreferencesUiEvent
     data class UpdateImageBrowserMemoryCachePercent(val percent: Int) : MediaLibraryPreferencesUiEvent
     data class UpdateImageBrowserThumbnailSizePx(val sizePx: Int) : MediaLibraryPreferencesUiEvent
-    data class UpdateImageBrowserPreloadRange(val range: Int) : MediaLibraryPreferencesUiEvent
     data class UpdateImageBrowserPreloadPageCount(val count: Int) : MediaLibraryPreferencesUiEvent
     data class UpdateImageCacheExpiry(val expiry: CacheExpiry) : MediaLibraryPreferencesUiEvent
     data object ClearImageCache : MediaLibraryPreferencesUiEvent

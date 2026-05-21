@@ -34,6 +34,7 @@ data class ApplicationPreferences(
     val thumbnailGenerationStrategy: ThumbnailGenerationStrategy = ThumbnailGenerationStrategy.FRAME_AT_PERCENTAGE,
     val thumbnailFramePosition: Float = DEFAULT_THUMBNAIL_FRAME_POSITION,
     val diskCacheSizeMb: Int = 3072,
+    val imageCloudDiskCacheEnabled: Boolean = true,
 
     val streamingMinBufferMs: Int = DEFAULT_STREAMING_MIN_BUFFER_MS,
     val streamingMaxBufferMs: Int = DEFAULT_STREAMING_MAX_BUFFER_MS,
@@ -43,7 +44,6 @@ data class ApplicationPreferences(
     val imageQuality: ImageQuality = ImageQuality.HIGH,
     val imageBrowserMemoryCachePercent: Int = DEFAULT_IMAGE_BROWSER_MEMORY_CACHE_PERCENT,
     val imageBrowserThumbnailSizePx: Int = DEFAULT_IMAGE_BROWSER_THUMBNAIL_SIZE_PX,
-    val imageBrowserPreloadRange: Int = DEFAULT_IMAGE_BROWSER_PRELOAD_RANGE,
     val imageBrowserPreloadPageCount: Int = DEFAULT_IMAGE_BROWSER_PRELOAD_PAGE_COUNT,
     val imageCacheExpiry: CacheExpiry = CacheExpiry.NEVER,
 ) {
@@ -75,9 +75,6 @@ data class ApplicationPreferences(
         const val IMAGE_BROWSER_THUMBNAIL_SIZE_ORIGINAL = 0
         const val DEFAULT_IMAGE_BROWSER_THUMBNAIL_SIZE_PX = 512
         val IMAGE_BROWSER_THUMBNAIL_SIZE_OPTIONS = listOf(512, 768, 1024, IMAGE_BROWSER_THUMBNAIL_SIZE_ORIGINAL)
-        const val DEFAULT_IMAGE_BROWSER_PRELOAD_RANGE = 2
-        const val MIN_IMAGE_BROWSER_PRELOAD_RANGE = 1
-        const val MAX_IMAGE_BROWSER_PRELOAD_RANGE = 6
         const val DEFAULT_IMAGE_BROWSER_PRELOAD_PAGE_COUNT = 2
         const val MIN_IMAGE_BROWSER_PRELOAD_PAGE_COUNT = 0
         const val MAX_IMAGE_BROWSER_PRELOAD_PAGE_COUNT = 5
