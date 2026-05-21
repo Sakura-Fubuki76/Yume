@@ -42,7 +42,6 @@ dependencies {
     implementation(libs.coil.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.jakewharton.disklrucache)
     implementation(libs.sardine.android) {
         exclude(group = "xpp3", module = "xpp3")
         exclude(group = "stax", module = "stax-api")

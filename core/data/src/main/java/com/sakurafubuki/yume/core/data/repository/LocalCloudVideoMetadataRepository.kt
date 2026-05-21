@@ -149,6 +149,22 @@ class LocalCloudVideoMetadataRepository @Inject constructor(
         }.distinctUntilChanged()
     }
 
+    override fun observeFolderMetadata(serverId: Int): Flow<Map<String, CloudFolderMetadata>> = webDavFolderMetadataDao.observeByServer(serverId)
+        .map { entities ->
+            entities.associate { entity ->
+                entity.folderPath to CloudFolderMetadata(
+                    totalDurationMs = entity.totalDurationMs,
+                    totalSize = entity.totalSize,
+                    mediaCount = entity.mediaCount,
+                    folderCount = entity.folderCount,
+                    coverImageUri = entity.coverImageUri,
+                    videoCount = entity.videoCount,
+                    imageCount = entity.imageCount,
+                )
+            }
+        }
+        .distinctUntilChanged()
+
     override suspend fun cacheMissingMetadata(server: WebDavServer, items: List<WebDavMediaItem>): Boolean {
         val videoItems = items.filter { it.isVideo && !it.isDirectory && it.size > 0L }
         if (videoItems.isEmpty()) return false

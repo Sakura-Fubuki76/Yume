@@ -20,6 +20,8 @@ interface CloudVideoMetadataRepository {
         folderPaths: List<String>,
     ): kotlinx.coroutines.flow.Flow<Map<String, CloudFolderMetadata>>
 
+    fun observeFolderMetadata(serverId: Int): kotlinx.coroutines.flow.Flow<Map<String, CloudFolderMetadata>>
+
     suspend fun cacheMissingMetadata(server: WebDavServer, items: List<WebDavMediaItem>): Boolean
 
     suspend fun getFolderMetadata(serverId: Int, folderPaths: List<String>): Map<String, CloudFolderMetadata>

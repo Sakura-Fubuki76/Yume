@@ -16,7 +16,7 @@ import com.sakurafubuki.yume.core.cache.ImageCacheManager
 import com.sakurafubuki.yume.core.common.Logger
 import com.sakurafubuki.yume.core.common.Utils
 import com.sakurafubuki.yume.core.common.extensions.stripUserInfoFromHttpUrl
-import com.sakurafubuki.yume.core.data.cache.CloudFolderCache
+import com.sakurafubuki.yume.core.data.cache.CloudDirectoryItemCache
 import com.sakurafubuki.yume.core.data.openlist.FsSearchItem
 import com.sakurafubuki.yume.core.data.openlist.OpenListApi
 import com.sakurafubuki.yume.core.data.openlist.toApiPath
@@ -64,7 +64,7 @@ class ImageBrowserViewModel @Inject constructor(
     private val webDavRepository: WebDavRepository,
     private val imageDimensionCache: ImageDimensionCache,
     private val webDavDirectoryCache: WebDavDirectoryCache,
-    private val cloudFolderCache: CloudFolderCache,
+    private val cloudDirectoryItemCache: CloudDirectoryItemCache,
     private val cloudVideoMetadataRepository: com.sakurafubuki.yume.core.data.repository.CloudVideoMetadataRepository,
     private val openListApi: OpenListApi,
     private val savedStateHandle: SavedStateHandle,
@@ -90,7 +90,6 @@ class ImageBrowserViewModel @Inject constructor(
     private val cloudPreviewSemaphore = Semaphore(MAX_CLOUD_PREVIEW_CONCURRENT_REQUESTS)
     private val pendingCloudDimensionUpdates = mutableMapOf<String, Pair<Int, Int>>()
     private var cloudDimensionFlushJob: Job? = null
-    private var cloudFolderCacheJob: Job? = null
 
     private val uiStateInternal = MutableStateFlow(
         ImageBrowserUiState(
@@ -429,21 +428,12 @@ class ImageBrowserViewModel @Inject constructor(
         cloudLoadJob?.cancel()
         val requestToken = ++cloudLoadRequestToken
 
-        val cachedFolderForColdStart = if (!refreshing) {
-            cloudFolderCache.get(server.id, path, "image")
-        } else {
-            null
-        }
-
         uiStateInternal.update {
             it.copy(
                 selectedCloudServerId = server.id,
                 cloudPath = path,
                 cloudGalleryState = when {
                     refreshing -> it.cloudGalleryState
-                    cachedFolderForColdStart != null -> {
-                        ImageGalleryUiState.Content(cachedFolderForColdStart)
-                    }
                     else -> ImageGalleryUiState.Loading
                 },
                 cloudPage = 1,
@@ -454,26 +444,16 @@ class ImageBrowserViewModel @Inject constructor(
             )
         }
 
-        if (cachedFolderForColdStart != null && cachedFolderForColdStart.folderList.isNotEmpty()) {
-            val coldStartToken = requestToken
-            viewModelScope.launch {
-                val enriched = enrichFolderWithDbMetadata(server.id, cachedFolderForColdStart)
-                if (coldStartToken != cloudLoadRequestToken) return@launch
-                if (enriched.folderList != cachedFolderForColdStart.folderList) {
-                    uiStateInternal.update {
-                        val currentState = it.cloudGalleryState
-                        if (currentState is ImageGalleryUiState.Content) {
-                            it.copy(cloudGalleryState = ImageGalleryUiState.Content(currentState.folder.copy(folderList = enriched.folderList)))
-                        } else {
-                            it
-                        }
-                    }
-                }
-            }
-        }
-
         cloudLoadJob = viewModelScope.launch {
             val perPage = 50
+            if (!refreshing) {
+                publishCachedCloudDirectory(
+                    server = server,
+                    path = path,
+                    preferences = preferences,
+                    requestToken = requestToken,
+                )
+            }
             val indexedFolder = withContext(Dispatchers.IO) {
                 buildIndexedCloudFolder(
                     server = server,
@@ -501,7 +481,6 @@ class ImageBrowserViewModel @Inject constructor(
                 }
                 launch(Dispatchers.IO) {
                     saveImageFolderMetadataToDb(server, displayFolder)
-                    cloudFolderCache.put(server.id, path, displayFolder, "image")
                 }
                 if (displayFolder.folderList.isNotEmpty()) {
                     launch {
@@ -525,6 +504,10 @@ class ImageBrowserViewModel @Inject constructor(
                 .onSuccess { data ->
                     if (requestToken != cloudLoadRequestToken) return@onSuccess
                     val items = data.content.orEmpty().map { it.toWebDavMediaItem(server, apiPath) }
+                    webDavDirectoryCache.put(server.id, path, items)
+                    launch(Dispatchers.IO) {
+                        cloudDirectoryItemCache.put(server.id, path, items)
+                    }
                     val sourceFolder = mapCloudFolder(server = server, path = apiPath, preferences = preferences, items = items)
                     val rawFolder = resolveCloudLeafFolders(server = server, folder = sourceFolder, preferences = preferences)
                     val folder = enrichFolderWithDbMetadata(server.id, rawFolder)
@@ -555,10 +538,6 @@ class ImageBrowserViewModel @Inject constructor(
                             cloudLoadingMore = false,
                             cloudError = null,
                         )
-                    }
-
-                    launch(Dispatchers.IO) {
-                        cloudFolderCache.put(server.id, path, displayFolder, "image")
                     }
 
                     val dimensionTargets = collectMissingDimensionTargets(displayFolder)
@@ -645,7 +624,6 @@ class ImageBrowserViewModel @Inject constructor(
                         launch { probeMissingCloudDimensions(dimensionTargets) }
                     }
 
-                    scheduleCloudFolderCache(server.id, path, folder)
                     preloadCloudPagesAhead(
                         server = server,
                         path = path,
@@ -666,6 +644,31 @@ class ImageBrowserViewModel @Inject constructor(
                         )
                     }
                 }
+        }
+    }
+
+    private suspend fun publishCachedCloudDirectory(
+        server: WebDavServer,
+        path: String,
+        preferences: ApplicationPreferences,
+        requestToken: Long,
+    ) {
+        val cachedItems = getCachedCloudDirectoryItems(server.id, path) ?: return
+        val apiPath = server.toApiPath(path)
+        val sourceFolder = mapCloudFolder(server = server, path = apiPath, preferences = preferences, items = cachedItems)
+        val rawFolder = resolveCloudLeafFolders(server = server, folder = sourceFolder, preferences = preferences)
+        val displayFolder = enrichFolderWithDbMetadata(server.id, rawFolder)
+        if (requestToken != cloudLoadRequestToken) return
+        uiStateInternal.update {
+            it.copy(
+                cloudGalleryState = if (displayFolder.folderList.isEmpty() && displayFolder.mediaList.isEmpty()) {
+                    ImageGalleryUiState.Empty
+                } else {
+                    ImageGalleryUiState.Content(displayFolder)
+                },
+                cloudTotalItems = displayFolder.folderList.size + displayFolder.mediaList.size,
+                cloudError = null,
+            )
         }
     }
 
@@ -724,7 +727,6 @@ class ImageBrowserViewModel @Inject constructor(
                         }
                     }
                 }
-                scheduleCloudFolderCache(server.id, path, folder)
             }
         }
     }
@@ -976,7 +978,6 @@ class ImageBrowserViewModel @Inject constructor(
                 it
             }
         }
-        scheduleCloudFolderCache(server.id, folder.path, displayFolder)
     }
 
     private fun preloadCloudPath(path: String) {
@@ -995,11 +996,13 @@ class ImageBrowserViewModel @Inject constructor(
                 val apiPath = server.toApiPath(normalizedPath)
                 openListApi.listDirectory(server, apiPath, page = 1, perPage = 200)
                     .onSuccess { data ->
+                        val items = data.content.orEmpty().map { it.toWebDavMediaItem(server, apiPath) }
                         webDavDirectoryCache.put(
                             server.id,
                             normalizedPath,
-                            data.content.orEmpty().map { it.toWebDavMediaItem(server, apiPath) },
+                            items,
                         )
+                        cloudDirectoryItemCache.put(server.id, normalizedPath, items)
                     }
             } finally {
                 preloadJobs.remove(normalizedPath)
@@ -1167,9 +1170,19 @@ class ImageBrowserViewModel @Inject constructor(
                 .sortedWith(sort.videoComparator())
             return media.firstOrNull() to media.size
         }
-        val cachedFolder = cloudFolderCache.get(server.id, normalizedPath, "image")
-        if (cachedFolder != null) {
-            return cachedFolder.coverMedia to cachedFolder.mediaCount
+        val diskItems = getCachedCloudDirectoryItems(server.id, normalizedPath)
+        if (diskItems != null) {
+            val media = diskItems
+                .filter { it.isImage }
+                .map { item ->
+                    mapCloudImageItemToVideo(
+                        server = server,
+                        path = folderPath,
+                        item = item,
+                    )
+                }
+                .sortedWith(sort.videoComparator())
+            return media.firstOrNull() to media.size
         }
         return null to 0
     }
@@ -1201,6 +1214,18 @@ class ImageBrowserViewModel @Inject constructor(
                 )
             }
             .sortedWith(sort.folderComparator())
+    }
+
+    private suspend fun getCachedCloudDirectoryItems(
+        serverId: Int,
+        path: String,
+    ): List<WebDavMediaItem>? {
+        val normalizedPath = normalizePath(path)
+        webDavDirectoryCache.get(serverId, normalizedPath)?.let { return it }
+        val diskItems = cloudDirectoryItemCache.get(serverId, normalizedPath)
+        if (diskItems.isEmpty()) return null
+        webDavDirectoryCache.put(serverId, normalizedPath, diskItems)
+        return diskItems
     }
 
     private suspend fun buildIndexedMultiCloudRoot(
@@ -1478,7 +1503,10 @@ class ImageBrowserViewModel @Inject constructor(
                 refresh = refreshing,
             ).getOrThrow().content.orEmpty()
                 .map { it.toWebDavMediaItem(server, apiPath) }
-                .also { webDavDirectoryCache.put(server.id, parentPath, it) }
+                .also {
+                    webDavDirectoryCache.put(server.id, parentPath, it)
+                    cloudDirectoryItemCache.put(server.id, parentPath, it)
+                }
         }.getOrNull()
 
         val listedImages = directoryItems
@@ -1583,25 +1611,23 @@ class ImageBrowserViewModel @Inject constructor(
                 persistFolderCoverLocally(coverUriToSave)
             }
             val existing = existingMetadata[child.path]
-            val resolvedMediaCount = when {
+            val resolvedImageCount = when {
                 child.mediaCount > 0 -> child.mediaCount
                 child.mediaList.isNotEmpty() -> child.mediaList.size
-                else -> existing?.mediaCount ?: 0
-            }
-            val resolvedFolderCount = when {
-                child.folderCount > 0 -> child.folderCount
-                child.folderList.isNotEmpty() -> child.folderList.size
-                else -> existing?.folderCount ?: 0
+                else -> existing?.imageCount ?: 0
             }
             val resolvedTotalDurationMs = existing?.totalDurationMs ?: 0L
-            val resolvedTotalSize = existing?.totalSize ?: child.mediaSize
-            val resolvedImageCount = if (resolvedMediaCount > 0) resolvedMediaCount else existing?.imageCount ?: 0
+            val resolvedTotalSize = existing?.totalSize ?: 0L
+            val resolvedMediaCount = existing?.mediaCount ?: 0
+            val resolvedFolderCount = existing?.folderCount ?: 0
+            val resolvedVideoCount = existing?.videoCount ?: 0
             val metadataChanged = existing == null ||
                 existing.totalDurationMs != resolvedTotalDurationMs ||
                 existing.totalSize != resolvedTotalSize ||
                 existing.mediaCount != resolvedMediaCount ||
                 existing.folderCount != resolvedFolderCount ||
                 existing.coverImageUri != coverUriToSave ||
+                existing.videoCount != resolvedVideoCount ||
                 existing.imageCount != resolvedImageCount
             if (metadataChanged) {
                 cloudVideoMetadataRepository.saveFolderMetadata(
@@ -1612,6 +1638,7 @@ class ImageBrowserViewModel @Inject constructor(
                     mediaCount = resolvedMediaCount,
                     folderCount = resolvedFolderCount,
                     coverImageUri = coverUriToSave,
+                    videoCount = resolvedVideoCount,
                     imageCount = resolvedImageCount,
                 )
             }
@@ -1669,8 +1696,8 @@ class ImageBrowserViewModel @Inject constructor(
         val enriched = folder.folderList.map { child ->
             val meta = metadataMap[child.path] ?: return@map child
             var result = child
-            if (result.mediaCount == 0 && meta.mediaCount > 0) {
-                result = result.copy(mediaCount = meta.mediaCount)
+            if (result.mediaCount == 0 && meta.imageCount > 0) {
+                result = result.copy(mediaCount = meta.imageCount)
             }
             if (result.folderCount == 0 && meta.folderCount > 0) {
                 result = result.copy(folderCount = meta.folderCount)
@@ -1802,13 +1829,16 @@ class ImageBrowserViewModel @Inject constructor(
         path: String,
     ): List<com.sakurafubuki.yume.core.model.WebDavMediaItem>? {
         val normalizedPath = normalizePath(path)
-        webDavDirectoryCache.get(server.id, normalizedPath)?.let { return it }
+        getCachedCloudDirectoryItems(server.id, normalizedPath)?.let { return it }
         val apiPath = server.toApiPath(normalizedPath)
         val data = cloudPreviewSemaphore.withPermit {
             openListApi.listDirectory(server, apiPath, page = 1, perPage = 200).getOrNull()
         } ?: return null
         return data.content.orEmpty().map { it.toWebDavMediaItem(server, apiPath) }
-            .also { webDavDirectoryCache.put(server.id, normalizedPath, it) }
+            .also {
+                webDavDirectoryCache.put(server.id, normalizedPath, it)
+                cloudDirectoryItemCache.put(server.id, normalizedPath, it)
+            }
     }
 
     private suspend fun resolveCloudFolderPreview(
@@ -1845,33 +1875,16 @@ class ImageBrowserViewModel @Inject constructor(
         if (remainingDepth <= 0) return listOf(child)
         val path = normalizePath(child.path)
 
-        var cachedItems = webDavDirectoryCache.get(server.id, path)
-        if (cachedItems == null) {
-            val diskFolder = cloudFolderCache.get(server.id, path, "image")
-            if (diskFolder != null) {
-                if (diskFolder.mediaCount > 0 || diskFolder.mediaList.isNotEmpty()) {
-                    return listOf(
-                        child.copy(
-                            coverMedia = diskFolder.coverMedia,
-                            mediaCount = diskFolder.mediaCount.coerceAtLeast(diskFolder.mediaList.size),
-                        ),
-                    )
-                }
-                if (diskFolder.folderList.isNotEmpty()) {
-                    val subLeaves = diskFolder.folderList.flatMap { subChild ->
-                        resolveLeafFolderItem(server, subChild, sort, remainingDepth - 1)
-                            .map { it.copy(name = "${child.name}/${it.name}") }
-                    }
-                    if (subLeaves.isNotEmpty()) return subLeaves
-                }
-            }
-        }
+        var cachedItems = getCachedCloudDirectoryItems(server.id, path)
 
         if (cachedItems == null) {
             val apiPath = server.toApiPath(path)
             val apiResult = openListApi.listDirectory(server, apiPath, page = 1, perPage = 200).getOrNull()
             cachedItems = apiResult?.content?.map { it.toWebDavMediaItem(server, apiPath) }
-                ?.also { webDavDirectoryCache.put(server.id, path, it) }
+                ?.also {
+                    webDavDirectoryCache.put(server.id, path, it)
+                    cloudDirectoryItemCache.put(server.id, path, it)
+                }
         }
         if (cachedItems == null) return listOf(child)
 
@@ -2318,16 +2331,6 @@ class ImageBrowserViewModel @Inject constructor(
             uiStateInternal.update {
                 it.copy(cloudGalleryState = ImageGalleryUiState.Content(updatedFolder))
             }
-
-            scheduleCloudFolderCache(serverId, state.cloudPath, updatedFolder)
-        }
-    }
-
-    private fun scheduleCloudFolderCache(serverId: Int, path: String, folder: Folder) {
-        cloudFolderCacheJob?.cancel()
-        cloudFolderCacheJob = viewModelScope.launch(Dispatchers.IO) {
-            delay(3000L)
-            cloudFolderCache.put(serverId, path, folder, "image")
         }
     }
 }

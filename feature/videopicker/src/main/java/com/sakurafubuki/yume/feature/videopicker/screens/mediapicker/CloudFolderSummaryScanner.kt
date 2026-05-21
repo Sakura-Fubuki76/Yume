@@ -73,9 +73,7 @@ class CloudFolderSummaryScanner @Inject constructor(
             .toList()
         if (childPaths.isEmpty()) return
 
-        if (refreshIndexedVideoSummaries(server, parentPath, parentItems)) {
-            return
-        }
+        val usedIndexedSummary = refreshIndexedVideoSummaries(server, parentPath, parentItems)
 
         val semaphore = Semaphore(CHILD_SUMMARY_MAX_CONCURRENT_REQUESTS)
         coroutineScope {
@@ -84,10 +82,12 @@ class CloudFolderSummaryScanner @Inject constructor(
                     semaphore.withPermit {
                         if (!isCurrent()) return@withPermit
                         runCatching {
-                            val childItems = listCloudDirectory(server, childPath, perPage = SUMMARY_LIST_PER_PAGE)
-                            webDavVideoDirectoryCache.put(server.id, childPath, childItems)
-                            cloudDirectoryItemCache.put(server.id, childPath, childItems)
-                            saveScannedFolderMetadata(server, childPath, childItems)
+                            refreshFolderSummaryTree(
+                                server = server,
+                                folderPath = childPath,
+                                isCurrent = isCurrent,
+                                visitedPaths = mutableSetOf(normalizePath(parentPath)),
+                            )
                         }.onFailure { throwable ->
                             if (throwable !is CancellationException) {
                                 Logger.w(
@@ -101,10 +101,48 @@ class CloudFolderSummaryScanner @Inject constructor(
                 }
             }
             jobs.awaitAll()
-            if (isCurrent()) {
+            if (isCurrent() && !usedIndexedSummary) {
                 saveScannedFolderMetadata(server, parentPath, parentItems)
             }
         }
+    }
+
+    private suspend fun refreshFolderSummaryTree(
+        server: WebDavServer,
+        folderPath: String,
+        isCurrent: () -> Boolean,
+        visitedPaths: MutableSet<String>,
+        depth: Int = 0,
+    ) {
+        val normalizedPath = normalizePath(folderPath)
+        if (!isCurrent()) return
+        if (!visitedPaths.add(normalizedPath)) return
+
+        val items = listCloudDirectory(server, normalizedPath, perPage = SUMMARY_LIST_PER_PAGE)
+        webDavVideoDirectoryCache.put(server.id, normalizedPath, items)
+        cloudDirectoryItemCache.put(server.id, normalizedPath, items)
+        cloudVideoMetadataRepository.cacheMissingMetadata(server, items.cloudDisplayVideoFiles())
+
+        if (depth < SUMMARY_SCAN_MAX_DEPTH && items.cloudDisplayVideoFiles().isEmpty()) {
+            val childPaths = items
+                .asSequence()
+                .cloudDirectoryItems()
+                .map { normalizePath(resolveRelativePath(server, it.href)) }
+                .distinct()
+                .toList()
+            for (childPath in childPaths) {
+                refreshFolderSummaryTree(
+                    server = server,
+                    folderPath = childPath,
+                    isCurrent = isCurrent,
+                    visitedPaths = visitedPaths,
+                    depth = depth + 1,
+                )
+            }
+        }
+
+        if (!isCurrent()) return
+        saveScannedFolderMetadata(server, normalizedPath, items)
     }
 
     private suspend fun refreshIndexedVideoSummaries(
@@ -323,7 +361,10 @@ internal fun Sequence<WebDavMediaItem>.cloudDirectoryItems(): Sequence<WebDavMed
 
 internal fun List<WebDavMediaItem>.hasKnownCloudDisplayContent(): Boolean = cloudDisplayVideoFiles().isNotEmpty() || cloudDirectoryItems().isNotEmpty()
 
-internal fun isKnownEmptyCloudFolder(metadata: com.sakurafubuki.yume.core.model.CloudFolderMetadata?): Boolean = metadata != null && metadata.videoCount == 0 && metadata.mediaCount == 0 && metadata.folderCount == 0
+internal fun isKnownEmptyCloudFolder(metadata: com.sakurafubuki.yume.core.model.CloudFolderMetadata?): Boolean {
+    if (metadata == null || metadata.videoCount != 0 || metadata.folderCount != 0) return false
+    return metadata.mediaCount == 0 || metadata.mediaCount == metadata.imageCount
+}
 
 private fun FsSearchItem.isIndexedVideoFile(): Boolean {
     if (is_dir || size <= 0L) return false
@@ -357,6 +398,7 @@ private const val CLOUD_SUMMARY_LOG_TAG = "CloudFolderSummary"
 private const val CLOUD_SEARCH_LOG_TAG = "CloudSearchSummary"
 private const val ROOT_SUMMARY_MAX_CONCURRENT_REQUESTS = 4
 private const val CHILD_SUMMARY_MAX_CONCURRENT_REQUESTS = 4
+private const val SUMMARY_SCAN_MAX_DEPTH = 16
 private const val SUMMARY_LIST_PER_PAGE = 5000
 private const val SEARCH_INDEX_PAGE_SIZE = 10_000
 private const val SEARCH_INDEX_MAX_RESULTS = 50_000
