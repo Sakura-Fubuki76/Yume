@@ -492,6 +492,27 @@ internal fun MediaPickerScreen(
                 FloatingActionButtonMenuItem(
                     onClick = {
                         isFabExpanded = false
+                        if (uiState.mode == com.sakurafubuki.yume.core.model.MediaMode.CLOUD) {
+                            val folder = (uiState.cloudDataState as? DataState.Success)?.value
+                            val videoToPlay = folder?.recentlyPlayedVideo ?: folder?.firstVideo
+                            if (videoToPlay != null) {
+                                val cloudFolder = folder ?: return@FloatingActionButtonMenuItem
+                                rememberCloudVideoPlaybackMetadata(videoToPlay)
+                                val playlist = cloudFolder.allMediaList.map { it.uriString.toUri() }
+                                val orderedPlaylist = orderPlaylistFromClickedItem(
+                                    clickedUri = videoToPlay.uriString.toUri(),
+                                    playlist = playlist,
+                                )
+                                if (orderedPlaylist.size > 1) {
+                                    onPlayVideos(trimCloudPlaylistForIntent(orderedPlaylist))
+                                } else {
+                                    onPlayVideo(videoToPlay.uriString.toUri())
+                                }
+                                return@FloatingActionButtonMenuItem
+                            }
+                            uiState.recentlyPlayedCloudUri?.let { onPlayVideo(it.toUri()) }
+                            return@FloatingActionButtonMenuItem
+                        }
                         val folder = (uiState.mediaDataState as? DataState.Success)?.value ?: return@FloatingActionButtonMenuItem
                         val videoToPlay = folder.recentlyPlayedVideo ?: folder.firstVideo ?: return@FloatingActionButtonMenuItem
                         onPlayVideo(videoToPlay.uriString.toUri())
@@ -814,13 +835,8 @@ private fun CloudVideoPane(
                     }
 
                     val cloudPlaylist = rootFolder.mediaList.map { it.uriString.toUri() }
-                    rootFolder.mediaList.forEach { video ->
-                        video.thumbnailUriString?.let { thumb ->
-                            VideoThumbnailStore.thumbnailUriMap[video.uriString] = thumb
-                        }
-                        if (video.duration > 0) {
-                            VideoThumbnailStore.durationMsMap[video.uriString] = video.duration
-                        }
+                    rootFolder.allMediaList.forEach { video ->
+                        rememberCloudVideoPlaybackMetadata(video)
 
                         Logger.d(
                             "BUG2_MediaPicker",
@@ -926,6 +942,15 @@ private fun trimCloudPlaylistForIntent(orderedPlaylist: List<Uri>): List<Uri> {
         estimatedParcelBytes += uriParcelBytes
     }
     return trimmed.ifEmpty { orderedPlaylist.take(1) }
+}
+
+private fun rememberCloudVideoPlaybackMetadata(video: Video) {
+    video.thumbnailUriString?.let { thumb ->
+        VideoThumbnailStore.thumbnailUriMap[video.uriString] = thumb
+    }
+    if (video.duration > 0) {
+        VideoThumbnailStore.durationMsMap[video.uriString] = video.duration
+    }
 }
 
 @Composable
