@@ -750,14 +750,23 @@ class ImageBrowserViewModel @Inject constructor(
                             item = item,
                         )
                     }
-                    .sortedWith(sort.videoComparator())
+                    .orderedCloudVideos(server, sort)
                 warmCloudThumbnailCache(images, preferences)
                 val currentFolder = (uiStateInternal.value.cloudGalleryState as? ImageGalleryUiState.Content)?.folder
-                val folderImages = if (append && currentFolder != null) {
-                    currentFolder.mediaList + images
-                } else {
-                    images
+                val cachedSnapshotImages = currentFolder
+                    ?.takeIf { !append && normalizePath(it.path) == normalizePath(path) }
+                    ?.mediaList
+                    .orEmpty()
+                val folderImages = when {
+                    append && currentFolder != null -> currentFolder.mediaList + images
+                    cachedSnapshotImages.isNotEmpty() -> images + cachedSnapshotImages
+                    else -> images
                 }
+                    .distinctBy { stableCacheKey(it.uriString) }
+                    .let { mergedImages ->
+                        data.total.takeIf { it > 0 }?.let(mergedImages::take) ?: mergedImages
+                    }
+                    .orderedCloudVideos(server, sort)
                 val folder = Folder(
                     name = cloudFolderDisplayName(server, path),
                     path = normalizePath(path),
@@ -885,7 +894,7 @@ class ImageBrowserViewModel @Inject constructor(
                     item = item,
                 )
             }
-            .sortedWith(sort.videoComparator())
+            .orderedCloudVideos(server, sort)
         if (images.isEmpty() || requestToken != cloudLoadRequestToken) return
 
         val folder = Folder(
@@ -1238,7 +1247,7 @@ class ImageBrowserViewModel @Inject constructor(
                             ?: return@withPermit child.path to child
                         val images = items.filter { it.isImage }
                             .map { item -> mapCloudImageItemToVideo(server, childPath, item) }
-                            .sortedWith(sort.videoComparator())
+                            .orderedCloudVideos(server, sort)
                         val directFolderCount = items.count { it.isDirectory }
                         child.path to child.copy(
                             coverMedia = images.firstOrNull() ?: child.coverMedia,
@@ -1257,7 +1266,7 @@ class ImageBrowserViewModel @Inject constructor(
                 val refreshed = refreshedByPath[child.path] ?: child
                 if (refreshed != child) changed = true
                 refreshed
-            },
+            }.orderedCloudFolders(server, sort),
         )
         if (!changed) return
 
@@ -1333,7 +1342,7 @@ class ImageBrowserViewModel @Inject constructor(
                 coverMedia = coverMedia,
                 mediaCount = mediaCount,
             )
-        }.sortedWith(sort.folderComparator())
+        }.orderedCloudFolders(server, sort)
 
         var zeroDimCount = 0
         var cachedDimCount = 0
@@ -1352,7 +1361,7 @@ class ImageBrowserViewModel @Inject constructor(
                     else -> zeroDimCount++
                 }
             }
-        }.sortedWith(sort.videoComparator())
+        }.orderedCloudVideos(server, sort)
 
         val (displayFolders, displayImages) = when (viewMode) {
             MediaViewMode.IMAGE,
@@ -1467,7 +1476,7 @@ class ImageBrowserViewModel @Inject constructor(
                         item = item,
                     )
                 }
-                .sortedWith(sort.videoComparator())
+                .orderedCloudVideos(server, sort)
             return media.firstOrNull() to media.size
         }
         val diskItems = getCachedCloudDirectoryItems(server.id, normalizedPath)
@@ -1481,7 +1490,7 @@ class ImageBrowserViewModel @Inject constructor(
                         item = item,
                     )
                 }
-                .sortedWith(sort.videoComparator())
+                .orderedCloudVideos(server, sort)
             return media.firstOrNull() to media.size
         }
         return null to 0
@@ -2201,7 +2210,7 @@ class ImageBrowserViewModel @Inject constructor(
             resolveLeafFolderItem(server, child, sort, MAX_CLOUD_LEAF_DEPTH)
         }
         return folder.copy(
-            folderList = deduplicateFolderNames(resolvedFolders.sortedWith(sort.folderComparator())),
+            folderList = deduplicateFolderNames(resolvedFolders.orderedCloudFolders(server, sort)),
         )
     }
 
@@ -2214,7 +2223,7 @@ class ImageBrowserViewModel @Inject constructor(
             enrichCloudTreeFolderItem(server, child, sort)
                 .takeIf(::hasDisplayableCloudImageFolder)
         }
-        return folder.copy(folderList = deduplicateFolderNames(enrichedFolders.sortedWith(sort.folderComparator())))
+        return folder.copy(folderList = deduplicateFolderNames(enrichedFolders.orderedCloudFolders(server, sort)))
     }
 
     private suspend fun enrichCloudTreeFolderItem(
@@ -2226,7 +2235,7 @@ class ImageBrowserViewModel @Inject constructor(
         val items = loadCloudPreviewItems(server, path) ?: return child
         val images = items.filter { it.isImage }
             .map { item -> mapCloudImageItemToVideo(server, path, item) }
-            .sortedWith(sort.videoComparator())
+            .orderedCloudVideos(server, sort)
         val childFolders = mutableListOf<Folder>()
         for (item in items.filter { it.isDirectory }) {
             val folderPath = normalizePath(resolveRelativePath(server, item.href))
@@ -2247,22 +2256,25 @@ class ImageBrowserViewModel @Inject constructor(
                 childFolders += previewFolder
             }
         }
-        childFolders.sortWith(sort.folderComparator())
+        val orderedChildFolders = childFolders.orderedCloudFolders(server, sort)
 
         val coverMedia = images.firstOrNull()
-            ?: childFolders.firstNotNullOfOrNull { it.coverMedia }
+            ?: orderedChildFolders.firstNotNullOfOrNull { it.coverMedia }
             ?: child.coverMedia.takeIf { child.mediaCount > 0 }
         val mediaCount = when {
             images.isNotEmpty() -> images.size
-            childFolders.any { it.mediaCount > 0 } -> childFolders.sumOf { it.mediaCount }
+            orderedChildFolders.any { it.mediaCount > 0 } -> orderedChildFolders.sumOf { it.mediaCount }
             else -> 0
         }
 
         return child.copy(
             coverMedia = coverMedia,
             mediaCount = mediaCount,
-            folderList = childFolders,
-            folderCount = childFolders.size,
+            dateModified = images.firstOrNull()?.dateModified
+                ?: orderedChildFolders.maxOfOrNull { it.dateModified }
+                ?: child.dateModified,
+            folderList = orderedChildFolders,
+            folderCount = orderedChildFolders.size,
         )
     }
 
@@ -2301,7 +2313,7 @@ class ImageBrowserViewModel @Inject constructor(
         val items = loadCloudPreviewItems(server, folderPath) ?: return cachedPreview
         val images = items.filter { it.isImage }
             .map { item -> mapCloudImageItemToVideo(server, folderPath, item) }
-            .sortedWith(sort.videoComparator())
+            .orderedCloudVideos(server, sort)
         if (images.isNotEmpty()) return images.first() to images.size
 
         val childPreviews = items.filter { it.isDirectory }
@@ -2341,11 +2353,12 @@ class ImageBrowserViewModel @Inject constructor(
         if (images.isNotEmpty()) {
             val media = images.map { item ->
                 mapCloudImageItemToVideo(server, path, item)
-            }.sortedWith(sort.videoComparator())
+            }.orderedCloudVideos(server, sort)
             return listOf(
                 child.copy(
                     coverMedia = media.firstOrNull(),
                     mediaCount = media.size,
+                    dateModified = media.firstOrNull()?.dateModified ?: child.dateModified,
                 ),
             )
         }
@@ -2371,6 +2384,27 @@ class ImageBrowserViewModel @Inject constructor(
     private fun imageSort(preferences: ApplicationPreferences): Sort {
         val sortBy = if (preferences.imageSortBy == Sort.By.LENGTH) Sort.By.TITLE else preferences.imageSortBy
         return Sort(by = sortBy, order = preferences.imageSortOrder)
+    }
+
+    private fun Sort.usesImageHostingServerOrder(): Boolean =
+        by == Sort.By.TITLE && order == Sort.Order.ASCENDING
+
+    private fun List<Video>.orderedCloudVideos(
+        server: WebDavServer,
+        sort: Sort,
+    ): List<Video> = if (server.isImageHosting && sort.usesImageHostingServerOrder()) {
+        this
+    } else {
+        sortedWith(sort.videoComparator())
+    }
+
+    private fun List<Folder>.orderedCloudFolders(
+        server: WebDavServer,
+        sort: Sort,
+    ): List<Folder> = if (server.isImageHosting && sort.usesImageHostingServerOrder()) {
+        this
+    } else {
+        sortedWith(sort.folderComparator())
     }
 
     private fun mapLocalImageToVideo(image: LocalImage): Video {
