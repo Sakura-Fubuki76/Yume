@@ -65,6 +65,8 @@ data class FsSearchData(
 data class FsSearchItem(
     val parent: String = "",
     val name: String = "",
+    val fullPath: String = "",
+    val modified: String = "",
     val is_dir: Boolean = false,
     val size: Long = 0L,
     val width: Int = 0,

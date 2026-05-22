@@ -258,7 +258,8 @@ class OpenListApiImpl @Inject constructor(
         var seenImages = 0
 
         queue.add(parent.normalizeCloudFlareImgBedPath() to firstResponse)
-        while (queue.isNotEmpty() && collected.size < perPage && visited.size < IMAGE_HOSTING_WALK_DIRECTORY_LIMIT) {
+        val collectAll = perPage <= 0
+        while (queue.isNotEmpty() && (collectAll || collected.size < perPage) && visited.size < IMAGE_HOSTING_WALK_DIRECTORY_LIMIT) {
             val (directory, cachedResponse) = queue.removeFirst()
             val normalizedDirectory = directory.normalizeCloudFlareImgBedPath()
             if (!visited.add(normalizedDirectory)) continue
@@ -282,10 +283,10 @@ class OpenListApiImpl @Inject constructor(
                 for (item in response.toFsSearchData().content.orEmpty().filter { it.isCloudFlareImgBedImage() }) {
                     if (seenImages++ < offset) continue
                     collected.add(item)
-                    if (collected.size >= perPage) break
+                    if (!collectAll && collected.size >= perPage) break
                 }
                 if (
-                    collected.size >= perPage ||
+                    (!collectAll && collected.size >= perPage) ||
                     !response.isIndexedResponse ||
                     directPage * IMAGE_HOSTING_WALK_PAGE_SIZE >= response.directFileCount
                 ) {
@@ -597,6 +598,8 @@ private fun CloudFlareImgBedListResponse.toFsSearchData(): FsSearchData {
         FsSearchItem(
             parent = parent,
             name = name,
+            fullPath = fullPath,
+            modified = file.metadata.metadataString("TimeStamp"),
             is_dir = false,
             size = file.metadata.metadataFileSizeBytes(),
             width = file.metadata.metadataInt("Width", "ImageWidth", "Image-Width"),

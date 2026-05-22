@@ -58,6 +58,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -742,13 +744,24 @@ private fun PaneContent(
     onLoadMore: () -> Unit = {},
     onRetryLoadMore: () -> Unit = {},
 ) {
+    val pullToRefreshState = rememberPullToRefreshState()
     PullToRefreshBox(
         modifier = modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
             .background(MaterialTheme.colorScheme.background),
+        state = pullToRefreshState,
         isRefreshing = refreshing,
         onRefresh = onRefresh,
+        indicator = {
+            if (refreshing || pullToRefreshState.distanceFraction > 0f) {
+                PullToRefreshDefaults.Indicator(
+                    state = pullToRefreshState,
+                    isRefreshing = refreshing,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
+            }
+        },
     ) {
         when (galleryState) {
             ImageGalleryUiState.Loading -> LoadingGalleryState(
@@ -828,6 +841,10 @@ private fun ImageMediaView(
     val contentHorizontalPadding = 8.dp
     val itemSpacing = if (preferences.imageLayoutMode == MediaLayoutMode.LIST) 8.dp else 4.dp
     val columns = if (preferences.imageLayoutMode == MediaLayoutMode.LIST) 1 else 2
+
+    LaunchedEffect(rootFolder.path) {
+        gridState.scrollToItem(0)
+    }
 
     LaunchedEffect(gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index, cloudHasMore, cloudLoadingMore) {
         val lastVisibleIndex = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
